@@ -147,7 +147,6 @@
                 let idleCalculated = 360 - (currentCpuUsage * 3.6); 
                 this.personalIdleMax = Math.max(0, idleCalculated); 
 
-                // 残像を完全に制御するための個別履歴配列
                 this.history = [];
                 this.maxHistory = 12; 
             }
@@ -156,7 +155,6 @@
                 const logicalWidth = canvas.parentElement.clientWidth;
                 const logicalHeight = canvas.parentElement.clientHeight;
 
-                // 履歴に現在の座標を記録（ワープ検知用フラグもセット）
                 this.history.push({ x: this.x, y: this.y, teleported: false });
                 if (this.history.length > this.maxHistory) {
                     this.history.shift();
@@ -204,13 +202,11 @@
                     }
                 }
 
-                // 画面端ワープの処理
                 let prevX = this.x;
                 let prevY = this.y;
                 this.x = (this.x + logicalWidth) % logicalWidth;
                 this.y = (this.y + logicalHeight) % logicalHeight;
 
-                // ワープした瞬間、履歴の最後の要素にフラグを立てて線が繋がらないようにする
                 if (Math.abs(this.x - prevX) > logicalWidth / 2 || Math.abs(this.y - prevY) > logicalHeight / 2) {
                     if (this.history.length > 0) {
                         this.history[this.history.length - 1].teleported = true;
@@ -231,16 +227,14 @@
                 const alpha = currentEnergyRatio * (this.state === 'moving' ? 0.9 : 0.6);
                 const brightness = this.state === 'moving' ? 75 : 55;
 
-                // --- 修正ポイント：履歴配列を使って、背景を汚さずに美しい「残像の尾」を引く ---
                 if (this.history.length > 1) {
                     for (let i = 1; i < this.history.length; i++) {
                         const p1 = this.history[i - 1];
                         const p2 = this.history[i];
                         
-                        // 画面ワープを跨ぐ位置関係なら線を描画しない
                         if (p1.teleported) continue;
 
-                        const ratio = i / this.history.length; // 古いほど薄く細く
+                        const ratio = i / this.history.length; 
                         ctx.beginPath();
                         ctx.moveTo(p1.x, p1.y);
                         ctx.lineTo(p2.x, p2.y);
@@ -252,7 +246,6 @@
                     }
                 }
 
-                // 先頭（現在の本体）の描画
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -266,7 +259,6 @@
         }
 
         const agents = [];
-        // --- 修正ポイント：初期出現数を「10体」の元通りに戻しました ---
         for (let i = 0; i < 10; i++) {
             const logicalWidth = canvas.parentElement.clientWidth;
             const logicalHeight = canvas.parentElement.clientHeight;
@@ -288,11 +280,16 @@
             const logicalWidth = canvas.parentElement.clientWidth;
             const logicalHeight = canvas.parentElement.clientHeight;
 
-            // --- 修正ポイント：100%不透明な背景色で毎フレーム完全リセット（モヤが絶対にたまらない） ---
+            // --- 修正ポイント：一時的に等倍(1:1)に戻し、物理ピクセルサイズで画面全体を強制塗りつぶし ---
             ctx.globalCompositeOperation = 'source-over';
             ctx.shadowBlur = 0; 
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // 座標系のスケールを一旦リセット
             ctx.fillStyle = '#070a0e'; 
-            ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+            ctx.fillRect(0, 0, canvas.width, canvas.height); // 丸め誤差を許さず完璧に一掃
+            
+            // 塗りつぶし完了後、描画ロジック用のdprスケールを再適用
+            const dpr = window.devicePixelRatio || 1;
+            ctx.scale(dpr, dpr);
 
             if (clickBoost > 0) {
                 clickBoost -= 0.4; 
@@ -321,7 +318,6 @@
             }
 
             const spawnProbability = 0.01 + (currentCpuUsage * 0.0015);
-            // --- 修正ポイント：出現数の下限ベースを「10」の元通りに戻しました ---
             const maxAgents = Math.min(150, 10 + Math.floor(currentCpuUsage * 1.5));
 
             if (agents.length < maxAgents && Math.random() < spawnProbability) {

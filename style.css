@@ -1,0 +1,120 @@
+/* 全体のリセット */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  font-family: 'Roboto', 'Noto Sans JP', sans-serif;
+  background-color: #ffffff; /* 画面全体を白に */
+  height: 100vh;
+  display: flex;
+  flex-direction: column; /* 上からヘッダー、作品群、フッターの順に配置 */
+}
+
+/* 一番上の白いタイトルスペース */
+.site-header {
+  background-color: #ffffff;
+  color: #111111;
+  padding: 30px 40px; /* 少し余白を広げて贅沢な空間に */
+}
+.site-header h1 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 5px;
+}
+
+/* 作品が縦に並ぶコンテナ */
+.gallery-container {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  background-color: #ffffff;
+  
+  /* 💡 画面を無理に等分せず、作品の数だけ高さを取ります。
+     もし作品が画面からはみ出るほど増えたら、ここだけスクロールします。 */
+  overflow-y: auto; 
+  max-height: calc(100vh - 160px); /* 上下のヘッダー・フッターの分を除いた最大高さ */
+}
+
+/* 各行（バー）の共通設定 */
+.gallery-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-decoration: none;
+  color: #fff;
+  overflow: hidden;
+  position: relative;
+  padding: 0 40px;
+  
+  /* 💡 通常時の高さを指定 */
+  height: 80px; 
+  flex-shrink: 0; /* スクロール時も絶対に潰れないように固定 */
+  transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
+}
+
+/* 【重要】マウスオーバーしたら、その行の「高さ」を広くする */
+.gallery-item:hover {
+  height: 180px;
+}
+
+/* バーの中身 */
+.item-content {
+  text-align: left;
+}
+
+/* 作品名 */
+.item-content h2 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+}
+
+/* 説明文 */
+.description {
+  font-size: 0.75rem;
+  font-weight: 300;
+  line-height: 1.6;
+  max-width: 600px;
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease;
+}
+
+/* ホバー時に説明文を表示 */
+.gallery-item:hover .description {
+  max-height: 100px;
+  opacity: 0.7;
+  margin-top: 15px;
+}
+
+/* 🔗 最下部のフッターエリアの設定 */
+.site-footer {
+  background-color: #ffffff;
+  margin-top: auto; /* 💡 これにより、作品が少なくてもフッターが自動的に最下部に押し下げられます */
+  padding: 40px; /* 下部にも贅沢な余白を確保 */
+}
+.footer-links {
+  display: flex;
+  gap: 30px; /* リンク同士の間隔 */
+}
+.site-footer a {
+  color: #888888; /* 上品な薄めのグレー */
+  text-decoration: none;
+  font-size: 0.7rem; /* 小さい文字 */
+  font-weight: 700;
+  letter-spacing: 2px;
+  transition: color 0.3s ease;
+}
+/* マウスオーバーで黒にする */
+.site-footer a:hover {
+  color: #111111; 
+}
+
+/* --- 各バーのカラフルな背景色 --- */
+.item-color4 { background: linear-gradient(90deg, #1582a3, #1498c0); }
+.item-color3 { background: linear-gradient(90deg, #d65173, #cc4690); }
+.item-color2 { background: linear-gradient(90deg, #919481, #afaa7c); }
+.item-color1 { background: linear-gradient(90deg, #349e69, #28a761); }

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0d1117;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background-color: #070a0e;
+            cursor: pointer;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="ecosystem"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('ecosystem');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.scale(dpr, dpr);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let currentCpuUsage = 0;
+        let clickBoost = 0; 
+
+        const deathParticles = [];
+
+        function calculateHue(cpuValue) {
+            if (cpuValue < 40) {
+                const ratio = cpuValue / 40;
+                return 130 - (130 - 55) * ratio;
+            } else if (cpuValue < 60) {
+                const ratio = (cpuValue - 40) / 20;
+                return 55 - (55 - 15) * ratio;
+            } else {
+                return 15;
+            }
+        }
+
+        class DeadParticle {
+            constructor(x, y, radius, hue) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.hue = hue;
+                this.alpha = 0.1;
+                this.isFlashing = true; 
+                this.flashSpeed = 0.3;  
+                
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 1.6 + 0.6; 
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                
+                this.friction = 0.96; 
+                this.fadeSpeed = Math.random() * 0.006 + 0.005; 
+            }
+
+            update() {
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                if (this.isFlashing) {
+                    this.alpha += this.flashSpeed;
+                    if (this.alpha >= 1.0) {
+                        this.alpha = 1.0;
+                        this.isFlashing = false; 
+                    }
+                } else {
+                    this.alpha -= this.fadeSpeed; 
+                }
+            }
+
+            draw() {
+                if (this.alpha <= 0) return;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                
+                const currentLightness = 65 + (this.alpha * 15);
+                ctx.fillStyle = `hsla(${this.hue}, 90%, ${currentLightness}%, ${this.alpha})`;
+                
+                ctx.shadowBlur = this.isFlashing ? 14 : 8;
+                ctx.shadowColor = `hsla(${this.hue}, 90%, 65%, ${this.alpha * 0.5})`;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class BioAgent {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = Math.random() * 1.5 + 2.5;
+                this.hueOffset = (Math.random() - 0.5) * 8;
+                
+                this.baseHue = calculateHue(currentCpuUsage) + this.hueOffset;
+                
+                this.state = 'idle';
+                this.stateTimer = Math.random() * 150;
+                
+                this.targetX = x;
+                this.targetY = y;
+                this.vx = 0;
+                this.vy = 0;
+                
+                this.maxSpeed = Math.random() * 5 + 7;
+                this.slowingRadius = 150;
+                this.friction = 0.93;
+
+                this.maxEnergy = Math.random() * 50 + 100;    
+                this.energy = this.maxEnergy;               
+                this.metabolicRate = Math.random() * 0.6 + 0.7; 
+
+                let idleCalculated = 360 - (currentCpuUsage * 3.6); 
+                this.personalIdleMax = Math.max(0, idleCalculated); 
+
+                // 残像を完全に制御するための個別履歴配列
+                this.history = [];
+                this.maxHistory = 12; 
+            }
+
+            update() {
+                const logicalWidth = canvas.parentElement.clientWidth;
+                const logicalHeight = canvas.parentElement.clientHeight;
+
+                // 履歴に現在の座標を記録（ワープ検知用フラグもセット）
+                this.history.push({ x: this.x, y: this.y, teleported: false });
+                if (this.history.length > this.maxHistory) {
+                    this.history.shift();
+                }
+
+                const energyDrain = (0.05 + (currentCpuUsage * 0.001)) * this.metabolicRate;
+                this.energy -= energyDrain;
+
+                if (this.state === 'idle') {
+                    this.vx += (Math.random() - 0.5) * 0.5;
+                    this.vy += (Math.random() - 0.5) * 0.5;
+                    this.vx *= this.friction;
+                    this.vy *= this.friction;
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    this.stateTimer--;
+                    if (this.stateTimer <= 0) {
+                        this.state = 'moving';
+                        this.targetX = Math.random() * logicalWidth;
+                        this.targetY = Math.random() * logicalHeight;
+                    }
+                } 
+                else if (this.state === 'moving') {
+                    const dx = this.targetX - this.x;
+                    const dy = this.targetY - this.y;
+                    const distToTarget = Math.sqrt(dx * dx + dy * dy);
+
+                    let desiredSpeed = this.maxSpeed;
+                    if (distToTarget < this.slowingRadius) {
+                        const ratio = distToTarget / this.slowingRadius;
+                        desiredSpeed = this.maxSpeed * (ratio * ratio); 
+                    }
+                    
+                    if (distToTarget < 3 || desiredSpeed < 0.15) {
+                        this.state = 'idle';
+                        this.stateTimer = Math.random() * this.personalIdleMax + 15; 
+                        this.vx = 0;
+                        this.vy = 0;
+                    } else {
+                        this.vx = (dx / distToTarget) * desiredSpeed;
+                        this.vy = (dy / distToTarget) * desiredSpeed;
+                        this.x += this.vx;
+                        this.y += this.vy;
+                    }
+                }
+
+                // 画面端ワープの処理
+                let prevX = this.x;
+                let prevY = this.y;
+                this.x = (this.x + logicalWidth) % logicalWidth;
+                this.y = (this.y + logicalHeight) % logicalHeight;
+
+                // ワープした瞬間、履歴の最後の要素にフラグを立てて線が繋がらないようにする
+                if (Math.abs(this.x - prevX) > logicalWidth / 2 || Math.abs(this.y - prevY) > logicalHeight / 2) {
+                    if (this.history.length > 0) {
+                        this.history[this.history.length - 1].teleported = true;
+                    }
+                }
+            }
+
+            shatter() {
+                const particleCount = Math.floor(Math.random() * 3) + 3; 
+                for (let i = 0; i < particleCount; i++) {
+                    const pRadius = this.radius * (Math.random() * 0.2 + 0.3);
+                    deathParticles.push(new DeadParticle(this.x, this.y, pRadius, this.baseHue));
+                }
+            }
+
+            draw() {
+                const currentEnergyRatio = (this.energy / this.maxEnergy);
+                const alpha = currentEnergyRatio * (this.state === 'moving' ? 0.9 : 0.6);
+                const brightness = this.state === 'moving' ? 75 : 55;
+
+                // --- 修正ポイント：履歴配列を使って、背景を汚さずに美しい「残像の尾」を引く ---
+                if (this.history.length > 1) {
+                    for (let i = 1; i < this.history.length; i++) {
+                        const p1 = this.history[i - 1];
+                        const p2 = this.history[i];
+                        
+                        // 画面ワープを跨ぐ位置関係なら線を描画しない
+                        if (p1.teleported) continue;
+
+                        const ratio = i / this.history.length; // 古いほど薄く細く
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        
+                        ctx.strokeStyle = `hsla(${this.baseHue}, 90%, ${brightness}%, ${alpha * 0.25 * ratio})`;
+                        ctx.lineWidth = this.radius * 2 * ratio;
+                        ctx.lineCap = 'round';
+                        ctx.stroke();
+                    }
+                }
+
+                // 先頭（現在の本体）の描画
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.baseHue}, 90%, ${brightness}%, ${alpha})`;
+                
+                ctx.shadowBlur = this.state === 'moving' ? 12 : 4;
+                ctx.shadowColor = `hsla(${this.baseHue}, 90%, 65%, 0.4)`;
+                ctx.fill();
+                ctx.shadowBlur = 0; 
+            }
+        }
+
+        const agents = [];
+        // --- 修正ポイント：初期出現数を「10体」の元通りに戻しました ---
+        for (let i = 0; i < 10; i++) {
+            const logicalWidth = canvas.parentElement.clientWidth;
+            const logicalHeight = canvas.parentElement.clientHeight;
+            agents.push(new BioAgent(Math.random() * logicalWidth, Math.random() * logicalHeight));
+        }
+
+        const canvasContainer = document.getElementById('canvas-container');
+        function triggerBoost(e) {
+            e.preventDefault(); 
+            clickBoost += 25;   
+        }
+        canvasContainer.addEventListener('mousedown', triggerBoost);
+        canvasContainer.addEventListener('touchstart', triggerBoost, {passthrough: true});
+
+        let lastFpsUpdate = Date.now();
+        let frames = 0;
+
+        function animate() {
+            const logicalWidth = canvas.parentElement.clientWidth;
+            const logicalHeight = canvas.parentElement.clientHeight;
+
+            // --- 修正ポイント：100%不透明な背景色で毎フレーム完全リセット（モヤが絶対にたまらない） ---
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.shadowBlur = 0; 
+            ctx.fillStyle = '#070a0e'; 
+            ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+
+            if (clickBoost > 0) {
+                clickBoost -= 0.4; 
+                if (clickBoost < 0) clickBoost = 0;
+            }
+
+            for (let i = agents.length - 1; i >= 0; i--) {
+                const a = agents[i];
+                a.update();
+                a.draw();
+
+                if ((a.energy / a.maxEnergy) <= 0.1) { 
+                    a.shatter(); 
+                    agents.splice(i, 1);
+                }
+            }
+
+            for (let i = deathParticles.length - 1; i >= 0; i--) {
+                const p = deathParticles[i];
+                p.update();
+                p.draw();
+                
+                if (p.alpha <= 0) {
+                    deathParticles.splice(i, 1);
+                }
+            }
+
+            const spawnProbability = 0.01 + (currentCpuUsage * 0.0015);
+            // --- 修正ポイント：出現数の下限ベースを「10」の元通りに戻しました ---
+            const maxAgents = Math.min(150, 10 + Math.floor(currentCpuUsage * 1.5));
+
+            if (agents.length < maxAgents && Math.random() < spawnProbability) {
+                agents.push(new BioAgent(Math.random() * logicalWidth, Math.random() * logicalHeight));
+            }
+
+            frames++;
+            const now = Date.now();
+            
+            if (now - lastFpsUpdate >= 1000) {
+                const currentFps = frames;
+                frames = 0;
+                lastFpsUpdate = now;
+
+                let calculatedCpu = Math.round((1 - (currentFps / 60)) * 100);
+                if (calculatedCpu < 0) calculatedCpu = 0;
+                if (calculatedCpu > 100) calculatedCpu = 100;
+                
+                let totalCpu = calculatedCpu + Math.floor(clickBoost) + Math.floor((Math.random() - 0.5) * 8);
+                currentCpuUsage = Math.min(100, Math.max(0, totalCpu));
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        setTimeout(() => {
+            resizeCanvas();
+            animate();
+        }, 50);
+    </script>
+</body>
+</html>

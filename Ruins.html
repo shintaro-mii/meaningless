@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ruins</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="mainCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let fontSize = 24;
+        let lineHeight = 46;
+        let padding = 60;
+
+        const FLOOR_OFFSET = 70;
+        const GRAVITY = 0.05;
+
+        const FONTS = [
+            { name: '"Times New Roman", "Hiragino Mincho ProN", "Yu Mincho", "MS Mincho", serif', weight: '300' },
+            { name: '"Georgia", serif', weight: '300' },
+            { name: '"Helvetica Neue", Arial, "Hiragino Sans", "Yu Gothic", sans-serif', weight: '200' },
+            { name: '"Hiragino Sans", "Meiryo", sans-serif', weight: '400' }
+        ];
+
+        const LITERATURE_TEXTS = [
+            "わたくしといふ現象は仮定された有機交流電燈のひとつの青い照明です。",
+            "一粒の砂の中に一つの世界を見、一輪の野の花に一つの天国を見る。君の掌の中に無限を握り、一瞬の中に永遠を掴む。私たちは、その一瞬のために、この長い迷宮を歩いているのかもしれない。",
+            "自由な人間とは、外からの強制（義務）によって行動するのでもなく、また内なる本能（欲求）に突き動かされて行動するのでもない。自らの純粋な思考によって生み出した『直感（内的動機）』を、自らの行動の指針とできる人のことである。私たちが自らの行為の理由を自分自身の中にしか持たないとき、初めて私たちは自由であると言える。",
+            "人間を人間たらしめているのは、その不完全さであり、他者への『共感（エンパシー）』という、論理では説明のつかない感情のゆらぎなんだ。",
+            "祇園精舎の鐘の声、諸行無常の響きあり。沙羅双樹の花の色、盛者伴衰の理をあらはす。おごれる人も久しからず、ただ春の夜の夢のごとし。たけき者もつひには滅びぬ、ひとへに風の前の塵におなじ。",
+            "If I had a world of my own, everything would be nonsense. Nothing would be what it is, because everything would be what it isn't. And contrary wise, what is, it wouldn't be. And what it wouldn't be, it would be.",
+            "All grown-ups were once children... but only few of them remember it. It is only with the heart that one can see rightly; what is essential is invisible to the eye.",
+            "人間は考える葦である。宇宙は私を包み、一つの点として飲み込むが、私は思考によって宇宙を包む。私たちのすべての尊厳は、それゆえに思考の中にある。",
+            "ああ、そしてそして十力の金剛石は露ばかりではありませんでした。碧いそら、かがやく太陽、丘をかけて行く風、花のそのかんばしいはなびらや、しべ、草のしなやかなからだ、すべてこれをのせになう丘や野原、王子たちのびろうどの上着や涙にかがやく瞳、すべてすべて十力の金剛石でした。",
+            "人は欲しがっているものを本当に欲しいのではなく、別のものを手に入れたいと渇望している。たとえば、大型犬を欲しがっている人が本当に望んでいるものは自分が支配する力だというふうに。",
+            "自分が何をやりたいか、何を伝えたいかが分かっていたら、技術は後からついてくる。",
+            "ただそれを知っただけでは上手くいかない。好きになればその道に向かって進む。もしそれを心から楽しむことが出来れば、いかなる困難にもくじけることなく進むことができるのだ。",
+            "私はただ、一本の樹になりたかった。風が吹けば揺れ、雨が降れば濡れ、季節が巡れば葉を落す。言葉を持たないということが、これほどまでに贅沢なことだとは知らなかった。"
+        ];
+
+        let words = [];      
+        let particles = [];  
+        let currentFont = FONTS[0];
+        let lastTargetTime = 0;
+        let nextInterval = 3000;
+
+        let floorSand = [];
+
+        // 状態管理: 'fadein', 'active', 'wait', 'blowing'
+        let transitionState = 'fadein';
+        let textAlpha = 0; 
+        let waitStartTime = 0; // 【新変数】静寂の間の開始時間を記録
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (floorSand.length === 0) {
+                clearFloorSand();
+            } else {
+                let oldSand = [...floorSand];
+                clearFloorSand();
+                for(let i = 0; i < Math.min(oldSand.length, floorSand.length); i++) {
+                    floorSand[i] = oldSand[i];
+                }
+            }
+        }
+
+        function clearFloorSand() {
+            floorSand = new Array(canvas.width).fill(0);
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            init();
+        });
+        resizeCanvas();
+
+        function init() {
+            words = [];
+            particles = [];
+            lastTargetTime = Date.now();
+            
+            nextInterval = Math.random() * 5000;
+            transitionState = 'fadein'; 
+            textAlpha = 0;            
+            waitStartTime = 0;
+
+            if (window.innerWidth < 768) {
+                fontSize = 28;       
+                lineHeight = 54;     
+                padding = 30;        
+            } else {
+                fontSize = 24;       
+                lineHeight = 46;
+                padding = 60;
+            }
+
+            const text = LITERATURE_TEXTS[Math.floor(Math.random() * LITERATURE_TEXTS.length)];
+            currentFont = FONTS[Math.floor(Math.random() * FONTS.length)];
+
+            const tCanvas = document.createElement('canvas');
+            tCanvas.width = fontSize * 3;
+            tCanvas.height = fontSize * 3;
+            const tCtx = tCanvas.getContext('2d');
+
+            ctx.font = `${currentFont.weight} ${fontSize}px ${currentFont.name}`;
+
+            let currentX = padding;
+            let currentY = padding;
+            const maxWidth = canvas.width - padding;
+
+            for (let char of text) {
+                const charWidth = ctx.measureText(char).width;
+
+                if (currentX + charWidth > maxWidth) {
+                    currentX = padding;
+                    currentY += lineHeight;
+                }
+
+                tCtx.clearRect(0, 0, tCanvas.width, tCanvas.height);
+                tCtx.fillStyle = '#fff';
+                tCtx.font = `${currentFont.weight} ${fontSize}px ${currentFont.name}`;
+                
+                tCtx.textBaseline = 'top';
+                tCtx.fillText(char, 0, fontSize * 0.5);
+
+                const scanWidth = Math.ceil(fontSize * 2.5);
+                const scanHeight = Math.ceil(fontSize * 2.5);
+                const imgData = tCtx.getImageData(0, 0, scanWidth, scanHeight);
+                let charParticles = [];
+
+                if (char.trim() !== '') {
+                    for (let py = 0; py < imgData.height; py++) {
+                        for (let px = 0; px < imgData.width; px++) {
+                            const alpha = imgData.data[(py * imgData.width + px) * 4 + 3];
+                            if (alpha > 10) {
+                                charParticles.push({ dx: px, dy: py - (fontSize * 0.5), a: alpha / 255 });
+                            }
+                        }
+                    }
+                }
+
+                words.push({
+                    char: char,
+                    x: currentX,
+                    y: currentY,
+                    status: 'stay',
+                    pixelData: charParticles 
+                });
+
+                currentX += charWidth + 4; 
+            }
+        }
+
+        function dissolveWord(target) {
+            if (transitionState !== 'active') return;
+
+            target.status = 'dead';
+            for (let pt of target.pixelData) {
+                particles.push({
+                    x: target.x + pt.dx,
+                    y: target.y + pt.dy,
+                    vx: (Math.random() - 0.5) * 0.1,  
+                    vy: 0.1 + Math.random() * 0.2, 
+                    alpha: pt.a * 0.7,
+                    isAlive: true,
+                    type: 'sand' 
+                });
+            }
+        }
+
+        window.addEventListener('click', () => {
+            const stayWords = words.filter(w => w.status === 'stay' && w.pixelData.length > 0);
+            if (stayWords.length > 0) {
+                for (let target of stayWords) {
+                    dissolveWord(target);
+                }
+            }
+        });
+
+        function triggerWindBlow() {
+            const baseFloorY = canvas.height - FLOOR_OFFSET;
+            
+            for (let x = 0; x < canvas.width; x++) { 
+                if (floorSand[x] > 0) {
+                    const sandHeight = floorSand[x];
+                    const particleY = baseFloorY - sandHeight;
+                    
+                    if (Math.random() < 0.4) {
+                        particles.push({
+                            x: x,
+                            y: particleY,
+                            vx: 2.0 + Math.random() * 4.0,   
+                            vy: -0.8 - Math.random() * 1.2,  
+                            alpha: 0.7,
+                            isAlive: true,
+                            type: 'wind' 
+                        });
+                    }
+
+                    floorSand[x] = Math.max(0, floorSand[x] - 1.5);
+                }
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const now = Date.now();
+
+            if (transitionState === 'fadein') {
+                textAlpha += 0.015; 
+                if (textAlpha >= 1) {
+                    textAlpha = 1;
+                    transitionState = 'active';
+                    lastTargetTime = now;
+                }
+            }
+
+            if (transitionState === 'active' && (now - lastTargetTime > nextInterval)) {
+                const stayWords = words.filter(w => w.status === 'stay' && w.pixelData.length > 0);
+                if (stayWords.length > 0) {
+                    const target = stayWords[Math.floor(Math.random() * stayWords.length)];
+                    dissolveWord(target);
+                }
+                lastTargetTime = now;
+                nextInterval = Math.random() * 5000; 
+            }
+
+            for (let word of words) {
+                if (word.status === 'dead') continue;
+                for (let pt of word.pixelData) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${pt.a * 0.95 * textAlpha})`;
+                    ctx.fillRect(word.x + pt.dx, word.y + pt.dy, 1, 1);
+                }
+            }
+
+            let hasActiveParticles = false;
+            let allDead = words.every(w => w.status === 'dead' || w.pixelData.length === 0);
+
+            const baseFloorY = canvas.height - FLOOR_OFFSET;
+
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+                if (!p.isAlive) continue;
+
+                hasActiveParticles = true;
+
+                if (p.type === 'sand') {
+                    p.vy += GRAVITY;
+                    p.x += p.vx;
+                    p.y += p.vy; 
+                    p.vx += (Math.random() - 0.5) * 0.005;
+
+                    const ix = Math.floor(p.x);
+                    if (ix >= 0 && ix < canvas.width) {
+                        const currentSandHeight = floorSand[ix];
+                        const targetY = baseFloorY - currentSandHeight;
+
+                        if (p.y >= targetY) {
+                            if (floorSand[ix] < canvas.height / 2) {
+                                floorSand[ix] += 1.0; 
+
+                                if (ix > 0 && floorSand[ix] > floorSand[ix - 1] + 1) {
+                                    floorSand[ix] -= 0.5;
+                                    floorSand[ix - 1] += 0.5;
+                                } else if (ix < canvas.width - 1 && floorSand[ix] > floorSand[ix + 1] + 1) {
+                                    floorSand[ix] -= 0.5;
+                                    floorSand[ix + 1] += 0.5;
+                                }
+                            }
+                            p.isAlive = false; 
+                            continue;
+                        }
+                    }
+                } else if (p.type === 'wind') {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.01; 
+                    p.alpha -= 0.006; 
+                    if (p.alpha <= 0) p.isAlive = false;
+                }
+
+                if (p.x < 0 || p.x > canvas.width + 50 || p.y > canvas.height) {
+                    p.isAlive = false;
+                    continue;
+                }
+
+                if (p.isAlive) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+                    ctx.fillRect(p.x, p.y, 1, 1);
+                }
+            }
+
+            // 【修正】全ての文字・落下粒子が消えたら、即座にblowingにせず「wait（待機）」状態にする
+            if (allDead && !hasActiveParticles && words.length > 0 && transitionState === 'active') {
+                transitionState = 'wait';
+                waitStartTime = now; // 待機開始時刻を記録
+            }
+
+            // 【新機能】1秒（1000ミリ秒）経過したら風化状態へ移行
+            if (transitionState === 'wait') {
+                if (now - waitStartTime >= 1000) {
+                    transitionState = 'blowing';
+                }
+            }
+
+            if (transitionState === 'blowing') {
+                triggerWindBlow();
+
+                let sandIsEmpty = floorSand.every(h => h <= 0.1);
+                let activeWindParticles = particles.some(p => p.isAlive && p.type === 'wind');
+
+                if (sandIsEmpty && !activeWindParticles) {
+                    clearFloorSand();
+                    init(); 
+                }
+            }
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            for (let x = 0; x < canvas.width; x++) {
+                const h = Math.floor(floorSand[x]);
+                if (h > 0) {
+                    ctx.fillRect(x, baseFloorY - h, 1, h);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>

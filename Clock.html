@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Clock</title>
+    <style>
+        :root {
+            --bg-color: #0d0d0d;
+            --panel-empty: #1a1a1a;
+            --panel-empty-glow: none; 
+            --color-hour: #ff4757;
+            --color-minute: #2ed573;
+            --color-second: #1e90ff;
+            --color-hour-glow: transparent;
+            --color-minute-glow: transparent;
+            --color-second-glow: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+            overflow: hidden;
+            transition: background-color 0.5s ease;
+            
+            /* 【修正】下部のシステムバー（戻る等のナビゲーションバー）対策を強化 */
+            /* セーフエリアに加えて、確実にバーを回避するための固定マージン（45px）を底上げしています */
+            padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+            padding-right: calc(env(safe-area-inset-right, 0px) + 20px);
+            padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 45px);
+            padding-left: calc(env(safe-area-inset-left, 0px) + 20px);
+            box-sizing: border-box;
+        }
+
+        #clock-container {
+            display: grid;
+            gap: 4px;
+            width: max-content;
+            height: max-content;
+        }
+
+        .layout-square {
+            grid-template-columns: repeat(12, 1fr);
+            grid-template-rows: repeat(12, 1fr);
+        }
+
+        .layout-portrait {
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(18, 1fr);
+        }
+
+        .panel {
+            background-color: var(--panel-empty);
+            border-radius: 4px;
+            box-shadow: var(--panel-empty-glow); 
+            aspect-ratio: 1 / 1; 
+            
+            /* 【連動修正】下部余白（padding-bottomの増量）を計算に正しく反映させ、画面内に綺麗に収まるサイズに制限 */
+            width: min(calc((100vw - 40px) / var(--cols, 12)), calc((100vh - 110px) / var(--rows, 12)));
+
+            transition: background-color 0.8s cubic-bezier(0.16, 1, 0.3, 1), 
+                        box-shadow 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+                        filter 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            filter: brightness(1);
+        }
+
+        .panel.active {
+            transition: background-color 0.05s ease, box-shadow 0.05s ease, filter 0.05s ease;
+        }
+
+        .panel.flash {
+            animation: pulse-flash 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        @keyframes pulse-flash {
+            0% {
+                filter: brightness(2.5);
+                box-shadow: 0 0 20px currentColor;
+            }
+            40% {
+                filter: brightness(1.5);
+            }
+            100% {
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="clock-container"></div>
+
+    <script>
+        const PALETTES = [
+            { 
+                name: 'ビタミン', 
+                isDynamicPastel: false,
+                isFixedHue: true, 
+                bg: 'hsl(200, 30%, 96%)', 
+                panels: 'hsl(200, 25%, 88%)', 
+                colors: ['hsl(46, 100%, 65%)', 'hsl(14, 90%, 68%)', 'hsl(176, 55%, 55%)'] 
+            },
+            { 
+                name: 'ビビッド', 
+                isDynamicPastel: false,
+                isFixedHue: false,
+                bg: { s: '45%', l: '5%' },       
+                panels: { s: '65%', l: '28%' },   
+                colors: [{s:'100%', l:'50%'}, {s:'100%', l:'50%'}, {s:'100%', l:'50%'}] 
+            },
+            { 
+                name: 'シック・アース', 
+                isDynamicPastel: false,
+                isFixedHue: false,
+                bg: { s: '10%', l: '16%' }, 
+                panels: { s: '12%', l: '24%' }, 
+                colors: [{s:'60%', l:'60%'}, {s:'15%', l:'54%'}, {s:'25%', l:'66%'}] 
+            },
+            { 
+                name: 'ネオン・サイバー', 
+                isDynamicPastel: false,
+                isFixedHue: false, 
+                bg: { s: '40%', l: '5%' }, 
+                panels: { s: '40%', l: '12%' }, 
+                colors: [{s:'100%', l:'50%'}, {s:'100%', l:'50%'}, {s:'100%', l:'50%'}] 
+            },
+            { 
+                name: '北欧モダン', 
+                isDynamicPastel: false,
+                isFixedHue: true, 
+                bg: 'hsl(210, 10%, 94%)', 
+                panels: 'hsl(210, 15%, 86%)', 
+                colors: ['hsl(7, 45%, 54%)', 'hsl(204, 30%, 40%)', 'hsl(158, 15%, 55%)'] 
+            },
+            { name: 'パステル', isDynamicPastel: true }
+        ];
+
+        let currentThemeName = '';
+
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function applyRandomPalette() {
+            const chosenPalette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+            currentThemeName = chosenPalette.name; 
+            const root = document.documentElement;
+
+            const randomShift = Math.floor(Math.random() * 360);
+
+            if (chosenPalette.isDynamicPastel) {
+                const baseHue = randomShift;
+                const hue1 = baseHue;
+                const hue2 = (baseHue + 120) % 360;
+                const hue3 = (baseHue + 240) % 360;
+                
+                const generatedColors = [`hsl(${hue1}, 85%, 80%)`, `hsl(${hue2}, 85%, 80%)`, `hsl(${hue3}, 85%, 80%)`];
+                const shuffledColors = shuffleArray(generatedColors);
+                const bg = `hsl(${baseHue}, 20%, 97%)`;
+
+                root.style.setProperty('--bg-color', bg);
+                root.style.setProperty('--panel-empty', '#ffffff');
+                root.style.setProperty('--panel-empty-glow', 'none'); 
+                root.style.setProperty('--color-hour', shuffledColors[0]);
+                root.style.setProperty('--color-minute', shuffledColors[1]);
+                root.style.setProperty('--color-second', shuffledColors[2]);
+            } 
+            else if (chosenPalette.isFixedHue) {
+                const shuffledColors = shuffleArray(chosenPalette.colors);
+                root.style.setProperty('--bg-color', chosenPalette.bg);
+                root.style.setProperty('--panel-empty', chosenPalette.panels);
+                root.style.setProperty('--panel-empty-glow', 'none'); 
+                root.style.setProperty('--color-hour', shuffledColors[0]);
+                root.style.setProperty('--color-minute', shuffledColors[1]);
+                root.style.setProperty('--color-second', shuffledColors[2]);
+            } 
+            else {
+                const hHour = (randomShift) % 360;
+                const hMin = (randomShift + 60) % 360;   
+                const hSec = (randomShift + 180) % 360;  
+                const scrambledHues = shuffleArray([hHour, hMin, hSec]);
+
+                const bg = `hsl(${randomShift}, ${chosenPalette.bg.s}, ${chosenPalette.bg.l})`;
+                const panels = `hsl(${randomShift}, ${chosenPalette.panels.s}, ${chosenPalette.panels.l})`;
+                
+                let c1 = `hsl(${scrambledHues[0]}, ${chosenPalette.colors[0].s}, ${chosenPalette.colors[0].l})`;
+                let c2 = `hsl(${scrambledHues[1]}, ${chosenPalette.colors[1].s}, ${chosenPalette.colors[1].l})`;
+                let c3 = `hsl(${scrambledHues[2]}, ${chosenPalette.colors[2].s}, ${chosenPalette.colors[2].l})`;
+
+                root.style.setProperty('--bg-color', bg);
+                root.style.setProperty('--panel-empty', panels);
+                
+                if (chosenPalette.name === 'ネオン・サイバー') {
+                    root.style.setProperty('--panel-empty-glow', `0 0 3px hsl(${randomShift}, ${chosenPalette.panels.s}, 15%)`);
+                    root.style.setProperty('--color-hour-glow', c1);
+                    root.style.setProperty('--color-minute-glow', c2);
+                    root.style.setProperty('--color-second-glow', c3);
+
+                    c1 = `hsl(${scrambledHues[0]}, 50%, 75%)`;
+                    c2 = `hsl(${scrambledHues[1]}, 50%, 75%)`;
+                    c3 = `hsl(${scrambledHues[2]}, 50%, 75%)`;
+                } else {
+                    root.style.setProperty('--panel-empty-glow', 'none');
+                }
+
+                root.style.setProperty('--color-hour', c1);
+                root.style.setProperty('--color-minute', c2);
+                root.style.setProperty('--color-second', c3);
+            }
+        }
+
+        applyRandomPalette();
+
+        const TOTAL_PANELS = 144;
+        const container = document.getElementById('clock-container');
+        
+        const panels = [];
+        for (let i = 0; i < TOTAL_PANELS; i++) {
+            const panel = document.createElement('div');
+            panel.classList.add('panel');
+            container.appendChild(panel);
+            panels.push(panel);
+        }
+
+        function updateLayout() {
+            const isPortrait = window.innerHeight > window.innerWidth;
+            const root = document.documentElement;
+            
+            if (isPortrait) {
+                container.className = 'layout-portrait';
+                root.style.setProperty('--cols', '8');
+                root.style.setProperty('--rows', '18');
+            } else {
+                container.className = 'layout-square';
+                root.style.setProperty('--cols', '12');
+                root.style.setProperty('--rows', '12');
+            }
+        }
+
+        updateLayout();
+        window.addEventListener('resize', updateLayout);
+
+        const masterMap = shuffleArray(Array.from({ length: TOTAL_PANELS }, (_, i) => i));
+        const hourMap = masterMap.slice(0, 24);
+        const minMap = masterMap.slice(24, 24 + 60);
+        const secMap = masterMap.slice(24 + 60, 24 + 60 + 60);
+
+        let previousActiveIndices = new Set();
+
+        function updateClock() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            const currentTurnOn = {};
+            const currentGlowColor = {};
+
+            for (let i = 0; i < hours; i++) {
+                currentTurnOn[hourMap[i]] = 'var(--color-hour)';
+                currentGlowColor[hourMap[i]] = 'var(--color-hour-glow)';
+            }
+            for (let i = 0; i < minutes; i++) {
+                currentTurnOn[minMap[i]] = 'var(--color-minute)';
+                currentGlowColor[minMap[i]] = 'var(--color-minute-glow)';
+            }
+            const secCount = seconds === 0 ? 1 : seconds + 1;
+            for (let i = 0; i < secCount; i++) {
+                currentTurnOn[secMap[i]] = 'var(--color-second)';
+                currentGlowColor[secMap[i]] = 'var(--color-second-glow)';
+            }
+
+            const currentActiveIndices = new Set(Object.keys(currentTurnOn).map(Number));
+
+            for (let i = 0; i < TOTAL_PANELS; i++) {
+                const panel = panels[i];
+                panel.classList.remove('flash');
+
+                if (currentActiveIndices.has(i)) {
+                    panel.style.backgroundColor = currentTurnOn[i];
+                    panel.style.color = currentTurnOn[i];
+                    
+                    if (currentThemeName === 'ネオン・サイバー') {
+                        panel.style.boxShadow = `0 0 4px ${currentGlowColor[i]}`;
+                    } else {
+                        panel.style.boxShadow = 'none'; 
+                    }
+                    
+                    panel.classList.add('active');
+
+                    if (!previousActiveIndices.has(i)) {
+                        void panel.offsetWidth; 
+                        panel.classList.add('flash');
+                    }
+                } else {
+                    panel.style.backgroundColor = 'var(--panel-empty)';
+                    panel.style.boxShadow = 'var(--panel-empty-glow)';
+                    panel.classList.remove('active');
+                }
+            }
+
+            previousActiveIndices = currentActiveIndices;
+        }
+
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>

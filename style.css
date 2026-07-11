@@ -137,7 +137,7 @@ body {
 }
 
 /* --- 各バーのカラフルな背景色 --- */
-.item-color4 { background: linear-gradient(90deg, #1582a3, #1498c0); }
-.item-color3 { background: linear-gradient(90deg, #d65173, #cc4690); }
-.item-color2 { background: linear-gradient(90deg, #919481, #afaa7c); }
-.item-color1 { background: linear-gradient(90deg, #349e69, #28a761); }
+.item-color4 { background: linear-gradient(90deg, #6ba8bb, #6ecca5); }
+.item-color3 { background: linear-gradient(90deg, #d38b9c, #d17abe); }
+.item-color2 { background: linear-gradient(90deg, #bbbdb3, #b4b296); }
+.item-color1 { background: linear-gradient(90deg, #7ed1a8, #bfee99); }

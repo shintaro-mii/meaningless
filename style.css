@@ -30,9 +30,6 @@ body {
   flex-direction: column;
   width: 100vw;
   background-color: #ffffff;
-  
-  /* 💡 画面を無理に等分せず、作品の数だけ高さを取ります。
-     もし作品が画面からはみ出るほど増えたら、ここだけスクロールします。 */
   overflow-y: auto; 
   max-height: calc(100vh - 160px); /* 上下のヘッダー・フッターの分を除いた最大高さ */
 }
@@ -47,22 +44,15 @@ body {
   overflow: hidden;
   position: relative;
   padding: 0 40px;
-  
-  /* 💡 通常時の高さを指定 */
   height: 80px; 
   flex-shrink: 0; /* スクロール時も絶対に潰れないように固定 */
   transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
 }
 
-/* 💡【変更後】pointer-events: none を使ってリンク機能を一時的に無効化します */
+/* hover または active クラスがついた時に広げる */
 .gallery-item:hover,
 .gallery-item.active {
   height: 180px;
-}
-
-/* スマホ等でまだ開いていない（activeになっていない）時は、中のリンクを無効化する */
-.gallery-item:not(.active) {
-  pointer-events: auto; /* 全体は触れるようにする */
 }
 
 /* バーの中身 */
@@ -89,7 +79,7 @@ body {
   transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease;
 }
 
-/* ホバー時に説明文を表示 */
+/* hover または active クラスがついた時に説明文を出す */
 .gallery-item:hover .description,
 .gallery-item.active .description {
   max-height: 100px;
@@ -100,9 +90,23 @@ body {
 /* 🔗 最下部のフッターエリアの設定 */
 .site-footer {
   background-color: #ffffff;
-  margin-top: auto; /* 💡 これにより、作品が少なくてもフッターが自動的に最下部に押し下げられます */
+  margin-top: auto; /* 作品が少なくてもフッターが自動的に最下部に押し下げられます */
   padding: 40px; /* 下部にも贅沢な余白を確保 */
+  display: flex;
+  flex-direction: row; /* 横並びにする */
+  align-items: center;
+  gap: 40px; /* 名前とリンクの間の溝 */
+  flex-wrap: wrap; /* 画面が狭いときは自動で折り返す親切設計 */
 }
+
+/* 💡 新しく追加した名前のスタイル */
+.footer-name {
+  color: #444444; /* リンクより少し濃い、上品なチャコールグレー */
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
 .footer-links {
   display: flex;
   gap: 30px; /* リンク同士の間隔 */

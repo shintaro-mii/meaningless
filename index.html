@@ -50,10 +50,11 @@
   </main>
 
   <footer class="site-footer">
+    <div class="footer-name">shintaro_mii</div>
+    
     <div class="footer-links">
-      <a href="https://x.com/あなたのユーザー名" target="_blank" rel="noopener noreferrer">X (TWITTER)</a>
-      <a href="https://instagram.com/あなたのユーザー名" target="_blank" rel="noopener noreferrer">INSTAGRAM</a>
-      <a href="https://github.com/あなたのユーザー名" target="_blank" rel="noopener noreferrer">GITHUB</a>
+      <a href="https://x.com/shintaro_mii" target="_blank" rel="noopener noreferrer">X (TWITTER)</a>
+      <a href="https://instagram.com/shintaro_mii" target="_blank" rel="noopener noreferrer">INSTAGRAM</a>
     </div>
   </footer>
 
@@ -61,29 +62,17 @@
     const galleryItems = document.querySelectorAll('.gallery-item');
 
     galleryItems.forEach(item => {
-      // スマホ用のタッチ開始イベントで確実に先手を打つ
       item.addEventListener('touchstart', function(e) {
-        // 画面幅がスマホサイズ（768px以下）のときだけ発動
         if (window.innerWidth <= 768) {
-          
-          // もし、まだ開いていない（activeクラスがない）場合
           if (!this.classList.contains('active')) {
-            // 🛑 リンクの標準動作（画面遷移）を完全にブロックする
             e.preventDefault(); 
-            
-            // 他の開いているバーをすべて閉じる
             galleryItems.forEach(i => i.classList.remove('active'));
-            
-            // このバーを開く（activeにする）
             this.classList.add('active');
           }
-          // すでに active がついている場合は e.preventDefault() が通らないため、
-          // 次の「クリック（タップ）」判定で通常通りリンク先にジャンプします。
         }
-      }, { passive: false }); // デフォルト動作のキャンセル（preventDefault）をブラウザに許可させる設定
+      }, { passive: false });
     });
 
-    // 背景（作品バー以外）をタップしたら説明を閉じる
     document.addEventListener('touchstart', function(e) {
       if (!e.target.closest('.gallery-item')) {
         galleryItems.forEach(item => item.classList.remove('active'));

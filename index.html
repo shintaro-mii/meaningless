@@ -11,37 +11,6 @@
   
   <link rel="stylesheet" href="style.css">
 </head>
-<script>
-    const galleryItems = document.querySelectorAll('.gallery-item');
-
-    galleryItems.forEach(item => {
-      // スマホのタップ（touchstart）の瞬間を捉えて制御する
-      item.addEventListener('click', function(e) {
-        if (window.innerWidth <= 768) {
-          // まだ開いていない場合
-          if (!this.classList.contains('active')) {
-            // 🛑 リンクに飛ぶ動きを「絶対に」ここでストップさせる
-            e.preventDefault(); 
-            e.stopPropagation();
-            
-            // 他の開いているバーを全部閉じる
-            galleryItems.forEach(i => i.classList.remove('active'));
-            
-            // このバーを開く
-            this.classList.add('active');
-          }
-          // すでに active がついている場合は e.preventDefault() が動かないので、通常通り2回目のタップでリンクに飛びます
-        }
-      });
-    });
-
-    // 背景をタップしたら閉じる
-    document.addEventListener('click', function(e) {
-      if (!e.target.closest('.gallery-item')) {
-        galleryItems.forEach(item => item.classList.remove('active'));
-      }
-    });
-  </script>
 <body>
 
   <header class="site-header">
@@ -50,7 +19,7 @@
 
   <main class="gallery-container">
     
-        <a href="Circles.html" class="gallery-item item-color4">
+    <a href="Circles.html" class="gallery-item item-color4">
       <div class="item-content">
         <h2>Circles</h2>
         <p class="description">色の波紋。リロードすると色のパターンが変わる。</p>
@@ -87,6 +56,40 @@
       <a href="https://github.com/あなたのユーザー名" target="_blank" rel="noopener noreferrer">GITHUB</a>
     </div>
   </footer>
+
+  <script>
+    const galleryItems = document.querySelectorAll('.gallery-item');
+
+    galleryItems.forEach(item => {
+      // スマホ用のタッチ開始イベントで確実に先手を打つ
+      item.addEventListener('touchstart', function(e) {
+        // 画面幅がスマホサイズ（768px以下）のときだけ発動
+        if (window.innerWidth <= 768) {
+          
+          // もし、まだ開いていない（activeクラスがない）場合
+          if (!this.classList.contains('active')) {
+            // 🛑 リンクの標準動作（画面遷移）を完全にブロックする
+            e.preventDefault(); 
+            
+            // 他の開いているバーをすべて閉じる
+            galleryItems.forEach(i => i.classList.remove('active'));
+            
+            // このバーを開く（activeにする）
+            this.classList.add('active');
+          }
+          // すでに active がついている場合は e.preventDefault() が通らないため、
+          // 次の「クリック（タップ）」判定で通常通りリンク先にジャンプします。
+        }
+      }, { passive: false }); // デフォルト動作のキャンセル（preventDefault）をブラウザに許可させる設定
+    });
+
+    // 背景（作品バー以外）をタップしたら説明を閉じる
+    document.addEventListener('touchstart', function(e) {
+      if (!e.target.closest('.gallery-item')) {
+        galleryItems.forEach(item => item.classList.remove('active'));
+      }
+    });
+  </script>
 
 </body>
 </html>

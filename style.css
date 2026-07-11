@@ -16,12 +16,24 @@ body {
 .site-header {
   background-color: #ffffff;
   color: #111111;
-  padding: 30px 40px; /* 少し余白を広げて贅沢な空間に */
+  padding: 30px 40px 20px 40px; /* 下側の余白を少し調整 */
+  display: flex;
+  flex-direction: column; /* タイトルと説明文を縦に並べる */
+  gap: 8px; /* タイトルと説明文の間のすき間 */
 }
 .site-header h1 {
-  font-size: 1rem;
+  font-size: 1.2rem; /* 少しだけ目立たせるために微調整 */
   font-weight: 700;
   letter-spacing: 5px;
+  line-height: 1;
+}
+
+/* 💡 新しく追加したヘッダー説明文のスタイル */
+.site-description {
+  font-size: 0.7rem; /* 小さい文字 */
+  font-weight: 500; /* 細めのフォントで繊細に */
+  color: #666666; /* 少し薄めのグレー */
+  letter-spacing: 3px; /* 文字の間隔を広げておしゃれに */
 }
 
 /* 作品が縦に並ぶコンテナ */

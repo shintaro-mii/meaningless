@@ -12,38 +12,36 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <script>
-    // すべての作品バー（リンク）を取得
     const galleryItems = document.querySelectorAll('.gallery-item');
 
     galleryItems.forEach(item => {
+      // スマホのタップ（touchstart）の瞬間を捉えて制御する
       item.addEventListener('click', function(e) {
-        // スマホなどのタッチ環境（ホバーが有効でない画面幅）を対象にする場合
         if (window.innerWidth <= 768) {
-          // もし、まだこのバーが「アクティブ（開いた状態）」でなければ
+          // まだ開いていない場合
           if (!this.classList.contains('active')) {
-            e.preventDefault(); // 1回目はページ移動をキャンセル！
+            // 🛑 リンクに飛ぶ動きを「絶対に」ここでストップさせる
+            e.preventDefault(); 
+            e.stopPropagation();
             
-            // 他に開いているバーがあれば一度全部閉じる
+            // 他の開いているバーを全部閉じる
             galleryItems.forEach(i => i.classList.remove('active'));
             
             // このバーを開く
             this.classList.add('active');
           }
-          // すでに 'active' がついている状態（2回目タップ）なら、通常通りリンク先に飛びます
+          // すでに active がついている場合は e.preventDefault() が動かないので、通常通り2回目のタップでリンクに飛びます
         }
       });
     });
 
-    // バー以外の場所をタップしたら説明を閉じる親切設計
+    // 背景をタップしたら閉じる
     document.addEventListener('click', function(e) {
       if (!e.target.closest('.gallery-item')) {
         galleryItems.forEach(item => item.classList.remove('active'));
       }
     });
   </script>
-
-</body>
-</html>
 <body>
 
   <header class="site-header">

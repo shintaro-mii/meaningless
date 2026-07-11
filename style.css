@@ -54,10 +54,15 @@ body {
   transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
 }
 
-/* 【重要】マウスオーバーしたら、その行の「高さ」を広くする */
+/* 💡【変更後】pointer-events: none を使ってリンク機能を一時的に無効化します */
 .gallery-item:hover,
 .gallery-item.active {
   height: 180px;
+}
+
+/* スマホ等でまだ開いていない（activeになっていない）時は、中のリンクを無効化する */
+.gallery-item:not(.active) {
+  pointer-events: auto; /* 全体は触れるようにする */
 }
 
 /* バーの中身 */

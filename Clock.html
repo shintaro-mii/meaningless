@@ -12,9 +12,10 @@
             --color-hour: #ff4757;
             --color-minute: #2ed573;
             --color-second: #1e90ff;
-            --color-hour-glow: transparent;
-            --color-minute-glow: transparent;
-            --color-second-glow: transparent;
+            
+            --glow-hour: transparent;
+            --glow-minute: transparent;
+            --glow-second: transparent;
         }
 
         body {
@@ -28,8 +29,6 @@
             overflow: hidden;
             transition: background-color 0.5s ease;
             
-            /* 【修正】下部のシステムバー（戻る等のナビゲーションバー）対策を強化 */
-            /* セーフエリアに加えて、確実にバーを回避するための固定マージン（45px）を底上げしています */
             padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
             padding-right: calc(env(safe-area-inset-right, 0px) + 20px);
             padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 45px);
@@ -55,18 +54,39 @@
         }
 
         .panel {
+            position: relative; 
             background-color: var(--panel-empty);
             border-radius: 4px;
             box-shadow: var(--panel-empty-glow); 
             aspect-ratio: 1 / 1; 
-            
-            /* 【連動修正】下部余白（padding-bottomの増量）を計算に正しく反映させ、画面内に綺麗に収まるサイズに制限 */
             width: min(calc((100vw - 40px) / var(--cols, 12)), calc((100vh - 110px) / var(--rows, 12)));
 
             transition: background-color 0.8s cubic-bezier(0.16, 1, 0.3, 1), 
                         box-shadow 0.8s cubic-bezier(0.16, 1, 0.3, 1),
                         filter 0.8s cubic-bezier(0.16, 1, 0.3, 1);
             filter: brightness(1);
+        }
+
+        .panel::after {
+            content: '';
+            position: absolute;
+            /* 【変更】円の広がりを少しだけパネル外側へ拡張（上下左右 -2px）してグローをちょっと大きく */
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 50%; 
+            background: var(--panel-glow, transparent);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 2;
+        }
+
+        /* 【修正】点灯（active）時の円形グローの最大不透明度を 0.4 から 0.2 (20%) に変更 */
+        .panel.active::after {
+            opacity: 0.2;
+            transition: opacity 0.05s ease;
         }
 
         .panel.active {
@@ -80,7 +100,6 @@
         @keyframes pulse-flash {
             0% {
                 filter: brightness(2.5);
-                box-shadow: 0 0 20px currentColor;
             }
             40% {
                 filter: brightness(1.5);
@@ -157,6 +176,11 @@
 
             const randomShift = Math.floor(Math.random() * 360);
 
+            root.style.setProperty('--glow-hour', 'transparent');
+            root.style.setProperty('--glow-minute', 'transparent');
+            root.style.setProperty('--glow-second', 'transparent');
+            root.style.setProperty('--panel-empty-glow', 'none');
+
             if (chosenPalette.isDynamicPastel) {
                 const baseHue = randomShift;
                 const hue1 = baseHue;
@@ -169,7 +193,6 @@
 
                 root.style.setProperty('--bg-color', bg);
                 root.style.setProperty('--panel-empty', '#ffffff');
-                root.style.setProperty('--panel-empty-glow', 'none'); 
                 root.style.setProperty('--color-hour', shuffledColors[0]);
                 root.style.setProperty('--color-minute', shuffledColors[1]);
                 root.style.setProperty('--color-second', shuffledColors[2]);
@@ -178,7 +201,6 @@
                 const shuffledColors = shuffleArray(chosenPalette.colors);
                 root.style.setProperty('--bg-color', chosenPalette.bg);
                 root.style.setProperty('--panel-empty', chosenPalette.panels);
-                root.style.setProperty('--panel-empty-glow', 'none'); 
                 root.style.setProperty('--color-hour', shuffledColors[0]);
                 root.style.setProperty('--color-minute', shuffledColors[1]);
                 root.style.setProperty('--color-second', shuffledColors[2]);
@@ -201,15 +223,15 @@
                 
                 if (chosenPalette.name === 'ネオン・サイバー') {
                     root.style.setProperty('--panel-empty-glow', `0 0 3px hsl(${randomShift}, ${chosenPalette.panels.s}, 15%)`);
-                    root.style.setProperty('--color-hour-glow', c1);
-                    root.style.setProperty('--color-minute-glow', c2);
-                    root.style.setProperty('--color-second-glow', c3);
 
-                    c1 = `hsl(${scrambledHues[0]}, 50%, 75%)`;
-                    c2 = `hsl(${scrambledHues[1]}, 50%, 75%)`;
-                    c3 = `hsl(${scrambledHues[2]}, 50%, 75%)`;
-                } else {
-                    root.style.setProperty('--panel-empty-glow', 'none');
+                    // 【変更】グラデーションのフェード比率も少し調整し、円の広がりがより綺麗に見えるよう変更（0%〜30%を芯に、85%で完全に透明化）
+                    root.style.setProperty('--glow-hour', `radial-gradient(circle, hsl(${scrambledHues[0]}, 60%, 95%) 0%, hsl(${scrambledHues[0]}, 60%, 95%) 30%, transparent 85%)`);
+                    root.style.setProperty('--glow-minute', `radial-gradient(circle, hsl(${scrambledHues[1]}, 60%, 95%) 0%, hsl(${scrambledHues[1]}, 60%, 95%) 30%, transparent 85%)`);
+                    root.style.setProperty('--glow-second', `radial-gradient(circle, hsl(${scrambledHues[2]}, 60%, 95%) 0%, hsl(${scrambledHues[2]}, 60%, 95%) 30%, transparent 85%)`);
+
+                    c1 = `hsl(${scrambledHues[0]}, 100%, 70%)`;
+                    c2 = `hsl(${scrambledHues[1]}, 100%, 70%)`;
+                    c3 = `hsl(${scrambledHues[2]}, 100%, 70%)`;
                 }
 
                 root.style.setProperty('--color-hour', c1);
@@ -263,20 +285,20 @@
             const seconds = now.getSeconds();
 
             const currentTurnOn = {};
-            const currentGlowColor = {};
+            const currentGlow = {}; 
 
             for (let i = 0; i < hours; i++) {
                 currentTurnOn[hourMap[i]] = 'var(--color-hour)';
-                currentGlowColor[hourMap[i]] = 'var(--color-hour-glow)';
+                currentGlow[hourMap[i]] = 'var(--glow-hour)';
             }
             for (let i = 0; i < minutes; i++) {
                 currentTurnOn[minMap[i]] = 'var(--color-minute)';
-                currentGlowColor[minMap[i]] = 'var(--color-minute-glow)';
+                currentGlow[minMap[i]] = 'var(--glow-minute)';
             }
             const secCount = seconds === 0 ? 1 : seconds + 1;
             for (let i = 0; i < secCount; i++) {
                 currentTurnOn[secMap[i]] = 'var(--color-second)';
-                currentGlowColor[secMap[i]] = 'var(--color-second-glow)';
+                currentGlow[secMap[i]] = 'var(--glow-second)';
             }
 
             const currentActiveIndices = new Set(Object.keys(currentTurnOn).map(Number));
@@ -287,12 +309,11 @@
 
                 if (currentActiveIndices.has(i)) {
                     panel.style.backgroundColor = currentTurnOn[i];
-                    panel.style.color = currentTurnOn[i];
                     
                     if (currentThemeName === 'ネオン・サイバー') {
-                        panel.style.boxShadow = `0 0 4px ${currentGlowColor[i]}`;
+                        panel.style.setProperty('--panel-glow', currentGlow[i]);
                     } else {
-                        panel.style.boxShadow = 'none'; 
+                        panel.style.setProperty('--panel-glow', 'transparent');
                     }
                     
                     panel.classList.add('active');
@@ -303,7 +324,7 @@
                     }
                 } else {
                     panel.style.backgroundColor = 'var(--panel-empty)';
-                    panel.style.boxShadow = 'var(--panel-empty-glow)';
+                    panel.style.setProperty('--panel-glow', 'transparent');
                     panel.classList.remove('active');
                 }
             }

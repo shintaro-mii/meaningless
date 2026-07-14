@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1N3NFH6G08"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-1N3NFH6G08');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hide</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none; /* スマホでの意図しない画面スクロールや拡大を防止 */
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: monospace;
+            cursor: crosshair;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+// --- アップデートされたカラーパレット ---
+const COLOR_PALETTES = [
+    { name: "1. SNOW WHITE", bg: [248, 248, 250], fg: [50, 50, 60], type: 'light' },
+    { name: "2. OBSIDIAN", bg: [18, 18, 24], fg: [30, 220, 250], type: 'dark' },
+    { name: "3. SAGE GREEN", bg: [225, 230, 222], fg: [60, 85, 70], type: 'light' },
+    { name: "4. MIDNIGHT BLUE", bg: [20, 26, 41], fg: [0, 255, 255], type: 'dark' },
+    { name: "5. SAND BEIGE", bg: [238, 232, 222], fg: [90, 75, 55], type: 'light' },
+    { name: "6. TERRACOTTA", bg: [45, 25, 20], fg: [255, 255, 255], type: 'dark' },
+    { name: "7. CLAY ROSE", bg: [235, 222, 222], fg: [240, 100, 110], type: 'light' },
+    { name: "8. DEEP FOREST", bg: [22, 33, 28], fg: [210, 215, 150], type: 'dark' },
+    { name: "9. PALE LILAC", bg: [230, 225, 235], fg: [200, 100, 240], type: 'light' },
+    { name: "10. CHARCOAL", bg: [40, 42, 46], fg: [210, 212, 215], type: 'dark' }
+];
+
+const palette = COLOR_PALETTES[Math.floor(Math.random() * COLOR_PALETTES.length)];
+document.body.style.backgroundColor = `rgb(${palette.bg.join(',')})`;
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- ⚙️ 画面サイズに応じたダイナミック調整 ⚙️ ---
+let fontSize = 16;
+let charWidth = 10;
+let cols = 0;
+let rows = 0;
+const grid = [];
+
+function initGridSize() {
+    if (window.innerWidth < 600) {
+        fontSize = 22; 
+        creature.baseRadius = 75; 
+    } else {
+        fontSize = 16; 
+        creature.baseRadius = 55;
+    }
+
+    ctx.font = `${fontSize}px monospace`;
+    charWidth = ctx.measureText('0').width;
+    
+    cols = Math.ceil(canvas.width / charWidth);
+    rows = Math.ceil(canvas.height / fontSize);
+
+    grid.length = 0;
+    for (let r = 0; r < rows; r++) {
+        const rowArray = [];
+        for (let c = 0; c < cols; c++) {
+            rowArray.push(Math.random() > 0.5 ? '1' : '0');
+        }
+        grid.push(rowArray);
+    }
+}
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    initGridSize();
+}
+
+// 生物の設定
+const creature = {
+    x: window.innerWidth / 2,
+    y: window.innerHeight / 2,
+    vx: 2,
+    vy: 1.5,
+    baseRadius: 55, 
+    radius: 55,     
+    speed: 3.5,
+    currentSpeed: 3.5,
+
+    update(isHeld, targetX, targetY) {
+        if (isHeld) {
+            const ease = 0.3;
+            this.x += (targetX - this.x) * ease + (Math.random() - 0.5) * 6;
+            this.y += (targetY - this.y) * ease + (Math.random() - 0.5) * 6;
+            return;
+        }
+
+        if (Math.random() < 0.03) {
+            const angle = Math.random() * Math.PI * 2;
+            this.vx = Math.cos(angle) * this.currentSpeed;
+            this.vy = Math.sin(angle) * this.currentSpeed;
+        }
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+        this.x = Math.max(0, Math.min(canvas.width, this.x));
+        this.y = Math.max(0, Math.min(canvas.height, this.y));
+    }
+};
+
+resize();
+window.addEventListener('resize', resize);
+
+let isHolding = false;
+let pointerX = 0;
+let pointerY = 0;
+let frameCount = 0;
+
+let releaseTicks = 0;      
+const releaseDuration = 30; 
+let releaseX = 0;          
+let releaseY = 0;
+
+let surfacingMode = 'quick';
+
+function startHold(clientX, clientY) {
+    const dx = clientX - creature.x;
+    const dy = clientY - creature.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance < creature.baseRadius) {
+        isHolding = true;
+        pointerX = clientX;
+        pointerY = clientY;
+        releaseTicks = 0; 
+    }
+}
+
+function moveHold(clientX, clientY) {
+    if (isHolding) {
+        pointerX = clientX;
+        pointerY = clientY;
+    }
+}
+
+function endHold() {
+    if (isHolding) {
+        isHolding = false;
+        releaseX = creature.x;
+        releaseY = creature.y;
+        releaseTicks = releaseDuration; 
+    }
+}
+
+window.addEventListener('mousedown', (e) => startHold(e.clientX, e.clientY));
+window.addEventListener('mousemove', (e) => moveHold(e.clientX, e.clientY));
+window.addEventListener('mouseup', endHold);
+window.addEventListener('mouseleave', endHold);
+
+window.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 0) startHold(e.touches[0].clientX, e.touches[0].clientY);
+});
+window.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 0) moveHold(e.touches[0].clientX, e.touches[0].clientY);
+});
+window.addEventListener('touchend', endHold);
+
+// 色の調合関数
+function lerpColor(bg, fg, ratio) {
+    const r = Math.floor(bg[0] + (fg[0] - bg[0]) * ratio);
+    const g = Math.floor(bg[1] + (fg[1] - bg[1]) * ratio);
+    const b = Math.floor(bg[2] + (fg[2] - bg[2]) * ratio);
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+function loop() {
+    ctx.fillStyle = `rgb(${palette.bg.join(',')})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    frameCount++;
+
+    let releaseProgress = 0; 
+    if (releaseTicks > 0) {
+        releaseTicks--;
+        releaseProgress = 1 - (releaseTicks / releaseDuration);
+    }
+
+    const cycle = 300; 
+    const cyclePos = frameCount % cycle;
+    
+    if (cyclePos === 0) {
+        surfacingMode = Math.random() < 0.25 ? 'slow' : 'quick';
+    }
+
+    let opacity = 0;      
+    let sizeScale = 0;    
+
+    if (surfacingMode === 'quick') {
+        creature.currentSpeed = creature.speed;
+        if (cyclePos >= 220 && cyclePos < 280) {
+            const t = cyclePos - 220; 
+            if (t < 45) {
+                const ratio = t / 45;
+                opacity = ratio; 
+                sizeScale = ratio; 
+            } else {
+                const ratio = 1 - ((t - 45) / 15);
+                opacity = ratio;
+                sizeScale = ratio; 
+            }
+        }
+    } else {
+        if (cyclePos >= 130 && cyclePos < 280) {
+            const t = cyclePos - 130; 
+            if (t < 50) {
+                const ratio = t / 50;
+                opacity = ratio;
+                sizeScale = ratio;
+                creature.currentSpeed = creature.speed * (1 - ratio * 0.6); 
+            } else if (t < 120) {
+                opacity = 1.0;
+                sizeScale = 1.0;
+                creature.currentSpeed = creature.speed * 0.4; 
+            } else {
+                const ratio = 1 - ((t - 120) / 30);
+                opacity = ratio;
+                sizeScale = ratio;
+                creature.currentSpeed = creature.speed * (0.4 + (1 - ratio) * 0.6);
+            }
+        } else {
+            creature.currentSpeed = creature.speed;
+        }
+    }
+
+    if (isHolding) {
+        creature.radius = creature.baseRadius; 
+    } else if (releaseTicks > 0) {
+        creature.radius = creature.baseRadius * (1 - releaseProgress * 0.7);
+    } else {
+        creature.radius = creature.baseRadius * sizeScale;
+    }
+
+    creature.update(isHolding, pointerX, pointerY);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.font = `${fontSize}px monospace`; 
+
+    // --- 🌊 「凪」と「波立ち」のグローバルサイクル計算 🌊 ---
+    const waveWave = (Math.sin(frameCount * (Math.PI * 2 / 800)) + 1) / 2;
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const posX = c * charWidth;
+            const posY = r * fontSize;
+
+            const dx = posX - creature.x;
+            const dy = posY - creature.y;
+            const distToCreature = Math.sqrt(dx * dx + dy * dy);
+
+            const angle = Math.atan2(dy, dx);
+            const rNoise = Math.sin(angle * 6 + frameCount * 0.1) * 3 + Math.cos(angle * 2) * 1.5;
+            const adjustedRadius = creature.radius > 0 ? creature.radius + rNoise : 0;
+
+            // --- 1. 文字の切り替え確率 ---
+            let changeChance = 0.015; 
+            
+            if (isHolding && distToCreature < adjustedRadius) {
+                changeChance = 0.8; 
+            } else if (adjustedRadius > 0 && distToCreature < adjustedRadius) {changeChance = releaseTicks > 0 ? 0.3 * (1 - releaseProgress) : 0.08 * opacity;
+            }
+
+            if (Math.random() < changeChance) {
+                grid[r][c] = Math.random() > 0.5 ? '1' : '0';
+            }
+
+            // --- 2. 色の決定 ---
+            let color = `rgb(${palette.bg.join(',')})`; 
+
+            if (isHolding) {
+                if (distToCreature < adjustedRadius) {
+                    const randomIntensity = 0.5 + Math.random() * 0.4; 
+                    color = lerpColor(palette.bg, palette.fg, randomIntensity);
+                } else if (distToCreature < adjustedRadius * 2.5) {
+                    const splashRatio = (distToCreature - adjustedRadius) / (adjustedRadius * 1.5);
+                    const splashChance = (1 - splashRatio) * 0.25; 
+                    if (Math.random() < splashChance) {
+                        const randomIntensity = 0.3 + Math.random() * 0.3; 
+                        color = lerpColor(palette.bg, palette.fg, randomIntensity);
+                    }
+                }
+            } else {
+                let isColoredByRelease = false;
+
+                if (releaseTicks > 0) {
+                    if (distToCreature < adjustedRadius) {
+                        const ratio = 1 - (distToCreature / adjustedRadius);
+                        const fadeFactor = 1 - releaseProgress; 
+                        color = lerpColor(palette.bg, palette.fg, 0.3 * ratio * fadeFactor);
+                        isColoredByRelease = true;
+                    } 
+                    
+                    const rdx = posX - releaseX;
+                    const rdy = posY - releaseY;
+                    const distToRelease = Math.sqrt(rdx * rdx + rdy * rdy);
+
+                    const waveRadius = releaseProgress * (window.innerWidth < 600 ? 220 : 160); 
+                    const waveWidth = 20; 
+
+                    if (Math.abs(distToRelease - waveRadius) < waveWidth) {
+                        const waveEdgeRatio = 1 - (Math.abs(distToRelease - waveRadius) / waveWidth);
+                        const waveFade = (1 - releaseProgress) * 0.5; 
+                        color = lerpColor(palette.bg, palette.fg, 0.45 * waveEdgeRatio * waveFade);
+                        isColoredByRelease = true;
+                    }
+                }
+
+                if (!isColoredByRelease) {
+                    if (adjustedRadius > 0 && distToCreature < adjustedRadius) {
+                        const ratio = 1 - (distToCreature / adjustedRadius);
+                        color = lerpColor(palette.bg, palette.fg, 0.32 * ratio * opacity);
+                    } else {
+                        // --- 背景さざなみ：時間の「うねり係数(waveWave)」を適用 ---
+                        const currentSpawnChance = 0.0005 + (waveWave * 0.0045);
+                        
+                        if (Math.random() < currentSpawnChance) {
+                            const maxLimit = 0.03 + (waveWave * 0.17);
+                            const randomMax = 0.01 + Math.random() * (maxLimit - 0.01);
+                            color = lerpColor(palette.bg, palette.fg, randomMax);
+                        }
+                    }
+                }
+            }
+
+            ctx.fillStyle = color;
+            ctx.fillText(grid[r][c], posX, posY);
+        }
+    }
+
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>

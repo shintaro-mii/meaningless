@@ -137,6 +137,7 @@ body {
 }
 
 /* --- 各バーのカラフルな背景色 --- */
+.item-color6 { background: linear-gradient(90deg, #657cac, #7195ca); }
 .item-color5 { background: linear-gradient(90deg, #f0c679, #fada83); }
 .item-color4 { background: linear-gradient(90deg, #6ba8bb, #6eccbf); }
 .item-color3 { background: linear-gradient(90deg, #d38b9c, #d487b2); }

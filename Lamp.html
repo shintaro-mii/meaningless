@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+        <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-1N3NFH6G08"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-1N3NFH6G08');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lamp</title>
+    <style>
+        /* 深夜の暗闇を表現する黒い背景（スマホ用スクロール抑止） */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #030305;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center; 
+            height: 100vh;
+            width: 100vw;
+            position: fixed;
+            touch-action: none; /* スマホの引っ張りスクロール等を防止 */
+        }
+
+        /* 画面中央に配置するためのコンテナ */
+        #stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* ランプ全体を吊るすシステム */
+        #lamp-system {
+            position: absolute;
+            top: 50%; /* 画面の縦中央を基準に */
+            left: 50%;
+            transform-origin: top center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: none;
+            /* ランプ自体（電球部分）がほぼ画面中央に配置されるよう、コードの長さ分（250px）上に引き上げる */
+            margin-top: -250px; 
+        }
+
+        /* ランプを吊るすコード（太さ4px） */
+        .cord {
+            width: 4px;
+            height: 250px;
+            background-color: #000000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.9);
+        }
+
+        /* 【正円】電球部分（光源の見た目） */
+        .bulb {
+            width: 24px;
+            height: 24px;
+            background-color: rgba(255, 230, 170, 1);
+            border-radius: 50%;
+            position: absolute;
+            bottom: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            box-shadow: 0 0 20px rgba(255, 180, 60, 0.9);
+            transition: background-color 0.02s, box-shadow 0.02s;
+        }
+
+        /* ランプの周囲をぼんやり明るくする光（空間のゆらぎ） */
+        .light-halo {
+            position: absolute;
+            top: 262px;
+            left: 50%;
+            transform: translate(-50%, -50%); 
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, 
+                rgba(255, 170, 50, 0.30) 0%, 
+                rgba(255, 130, 30, 0.12) 25%, 
+                rgba(255, 90, 10, 0.04) 50%, 
+                rgba(0, 0, 0, 0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            mix-blend-mode: screen;
+            z-index: 1;
+            transition: opacity 0.15s ease-out, width 0.15s ease-out, height 0.15s ease-out;
+        }
+
+        /* 黒い影の羽虫（ベースの大きさ） */
+        .moth {
+            position: absolute;
+            width: 7px;   
+            height: 7px;  
+            pointer-events: none;
+            z-index: 5; 
+            transform-origin: center center;
+            will-change: transform;
+            mix-blend-mode: multiply; 
+            opacity: 0;
+            transition: opacity 1.2s ease; 
+        }
+
+        /* 虫の胴体（初期値） */
+        .moth-body {
+            position: absolute;
+            width: 1.5px;
+            height: 4px;
+            background-color: #000000;
+            border-radius: 50%;
+            left: 2.75px;
+            top: 1.5px;
+        }
+
+        /* 虫の羽（初期値） */
+        .wing {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background-color: rgba(0, 0, 0, 0.85); 
+            border-radius: 50%;
+            top: 1px;
+        }
+        .wing.left {
+            left: 0px;
+            transform-origin: right center;
+            animation: flap-left 0.04s infinite alternate linear;
+        }
+        .wing.right {
+            right: 0px;
+            transform-origin: left center;
+            animation: flap-right 0.04s infinite alternate linear;
+        }
+
+        /* 大き目の羽虫用のスタイルクラス */
+        .moth.big-moth {
+            width: 18px !important;
+            height: 18px !important;
+        }
+        .moth.big-moth .moth-body {
+            width: 4px !important;
+            height: 11px !important;
+            left: 7px !important;
+            top: 3.5px !important;
+        }
+        .moth.big-moth .wing {
+            width: 8px !important;
+            height: 8px !important;
+            top: 3px !important;
+        }
+        .moth.big-moth .wing.left {
+            left: 0px !important;
+            animation: flap-left-big 0.05s infinite alternate linear !important;
+        }
+        .moth.big-moth .wing.right {
+            right: 0px !important;
+            animation: flap-right-big 0.05s infinite alternate linear !important;
+        }
+
+        /* 通常の羽ばたきアニメーション */
+        @keyframes flap-left {
+            0% { transform: scaleX(0.3) rotate(-20deg); }
+            100% { transform: scaleX(1.2) rotate(30deg); }
+        }
+        @keyframes flap-right {
+            0% { transform: scaleX(0.3) rotate(20deg); }
+            100% { transform: scaleX(1.2) rotate(-30deg); }
+        }
+
+        /* 大き目の羽虫用の羽ばたき */
+        @keyframes flap-left-big {
+            0% { transform: scaleX(0.2) rotate(-30deg); }
+            100% { transform: scaleX(1.4) rotate(40deg); }
+        }
+        @keyframes flap-right-big {
+            0% { transform: scaleX(0.2) rotate(30deg); }
+            100% { transform: scaleX(1.4) rotate(-40deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="stage">
+        <div id="lamp-system">
+            <div class="cord"></div>
+            <div class="bulb" id="bulb"></div>
+            <div class="light-halo" id="light"></div>
+        </div>
+    </div>
+
+    <script>
+        const stage = document.getElementById('stage');
+        const lampSystem = document.getElementById('lamp-system');
+        const bulb = document.getElementById('bulb');
+        const light = document.getElementById('light');
+
+        // --- 物理挙動パラメーター ---
+        let angle = 0;             
+        let angularVelocity = 0;   
+        let angularAcceleration = 0; 
+        
+        const gravity = 0.0008;    
+        const damping = 0.996;     
+        
+        let isWaitingForWind = true; 
+
+        function triggerGust() {
+            isWaitingForWind = false;
+            const direction = Math.random() < 0.5 ? 1 : -1;
+            // 揺れの最大角度を「20度」に変更
+            const maxAngleDeg = 20; 
+            const targetMaxAngle = maxAngleDeg * (Math.PI / 180);
+            // 突風時の初速を従来の1.5倍にする
+            const baseVelocity = Math.sqrt(2 * gravity * (1 - Math.cos(targetMaxAngle)));
+            angularVelocity = baseVelocity * direction * 1.5;
+        }
+
+        function updatePhysics() {
+            if (isWaitingForWind) {
+                angle = 0; angularVelocity = 0; angularAcceleration = 0;
+                if (Math.random() < 0.003) { triggerGust(); }
+            } else {
+                angularAcceleration = -gravity * Math.sin(angle);
+                angularVelocity += angularAcceleration;
+                angularVelocity *= damping; 
+                angle += angularVelocity;
+
+                if (Math.abs(angularVelocity) < 0.0005 && Math.abs(angle) < 0.001) {
+                    isWaitingForWind = true; 
+                }
+            }
+            lampSystem.style.transform = `rotate(${angle * (180 / Math.PI)}deg)`;
+            requestAnimationFrame(updatePhysics);
+        }
+
+        // --- 光の明滅とゆらぎ ---
+        let baseBrightness = 1.0;
+        let flickerTimer = 0;
+        let isFlickering = false;
+        let isLampOn = true; 
+
+        function updateLight() {
+            if (!isFlickering) {
+                flickerTimer += 0.025; 
+                let noise = Math.sin(flickerTimer * 1.2) * 0.15 + Math.sin(flickerTimer * 0.5) * 0.08;
+                let currentBrightness = baseBrightness + noise;
+
+                if (Math.random() < 0.005) { 
+                    isFlickering = true;
+                    executeFlickerEffect();
+                    return; 
+                }
+                applyBrightness(currentBrightness);
+            }
+            setTimeout(updateLight, 50 + Math.random() * 20);
+        }
+
+        function executeFlickerEffect() {
+            applyBrightness(0.0); 
+            setTimeout(() => {
+                applyBrightness(1.4); 
+                setTimeout(() => {
+                    if (Math.random() < 0.4) {
+                        applyBrightness(0.0);
+                        setTimeout(() => { isFlickering = false; updateLight(); }, 60);
+                    } else {
+                        isFlickering = false; updateLight();
+                    }
+                }, 40);
+            }, 50);
+        }
+
+        function applyBrightness(brightness) {
+            if (brightness > 0.05) {
+                brightness = Math.max(0.45, Math.min(brightness, 1.5)); 
+                isLampOn = true;
+            } else {
+                brightness = Math.max(0.0, brightness);
+                isLampOn = false; 
+            }
+
+            if (brightness <= 0.05) {
+                bulb.style.backgroundColor = `#222225`;
+                bulb.style.boxShadow = `none`;
+                light.style.opacity = 0;
+            } else {
+                // 明度の変動スケール（50%以上の時は最大明るさ、減少するほどさらに30%明度を下げて最小時に元の40%にする）
+                let intensityScale = 1.0;
+                if (brightness < 0.5) {
+                    // brightnessが0.5から0.0に落ちるにつれて、スケールを1.0から0.4（60%減）に線形補間
+                    intensityScale = 0.4 + (brightness / 0.5) * 0.6;
+                }
+
+                const r = Math.round(255 * intensityScale);
+                const g = Math.round((225 + brightness * 20) * intensityScale);
+                const b = Math.round((160 + brightness * 40) * intensityScale);
+
+                bulb.style.backgroundColor = `rgba(${r}, ${g}, ${b}, 1)`;
+                bulb.style.boxShadow = `0 0 ${15 + 15 * brightness}px rgba(255, 180, 60, ${(0.7 + brightness * 0.3) * intensityScale})`;
+                
+                const haloSize = 300 + 80 * (brightness - 0.45); 
+                light.style.width = `${haloSize}px`;
+                light.style.height = `${haloSize}px`;
+                light.style.opacity = brightness * intensityScale;
+                
+                light.style.background = `radial-gradient(circle, 
+                    rgba(255, 170, 50, ${0.35 * brightness * intensityScale}) 0%, 
+                    rgba(255, 130, 30, ${0.15 * brightness * intensityScale}) 25%, 
+                    rgba(255, 90, 10, ${0.05 * brightness * intensityScale}) 50%, 
+                    rgba(0, 0, 0, 0) 70%)`;
+            }
+        }
+
+        // --- 羽虫（蛾）のシミュレーションクラス ---
+        class Moth {
+            constructor(startAtCenter = false, isBig = false) {
+                this.isBig = isBig; 
+                
+                this.el = document.createElement('div');
+                this.el.className = 'moth';
+                if (this.isBig) {
+                    this.el.classList.add('big-moth'); 
+                }
+                
+                const bodyEl = document.createElement('div');
+                bodyEl.className = 'moth-body';
+                const leftWing = document.createElement('div');
+                leftWing.className = 'wing left';
+                const rightWing = document.createElement('div');
+                rightWing.className = 'wing right';
+                
+                this.el.appendChild(bodyEl);
+                this.el.appendChild(leftWing);
+                this.el.appendChild(rightWing);
+                stage.appendChild(this.el);
+
+                if (startAtCenter) {
+                    // 初期配置を画面中央（ランプ付近＝50%の高さ付近）に配置
+                    this.x = window.innerWidth / 2 + (Math.random() - 0.5) * 60;
+                    this.y = (window.innerHeight / 2) + (Math.random() - 0.5) * 60; 
+                    this.vx = (Math.random() - 0.5) * 4;
+                    this.vy = (Math.random() - 0.5) * 4;
+                    this.state = 'flying'; 
+                } else {
+                    this.resetToOutside();
+                    this.state = 'appearing'; 
+                }
+                
+                setTimeout(() => { this.el.style.opacity = '1'; }, 50);
+
+                this.noiseSpeed = this.isBig ? 0.15 : 0.25;
+                this.noiseSeedX = Math.random() * 100;
+                this.noiseSeedY = Math.random() * 100;
+
+                this.isMarkedForDeath = false; // フェードアウト消滅用のフラグ
+            }
+
+            resetToOutside() {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.max(window.innerWidth, window.innerHeight) * 0.6;
+                this.x = window.innerWidth / 2 + Math.cos(angle) * distance;
+                this.y = window.innerHeight / 2 + Math.sin(angle) * distance;
+                this.vx = 0;
+                this.vy = 0;
+            }
+
+            update(targetX, targetY) {
+                this.noiseSeedX += this.noiseSpeed;
+                this.noiseSeedY += this.noiseSpeed;
+
+                const forceScale = this.isBig ? 2.0 : 1.6;
+                const randForceX = Math.sin(this.noiseSeedX) * 0.9 + (Math.random() - 0.5) * forceScale;
+                const randForceY = Math.cos(this.noiseSeedY) * 0.9 + (Math.random() - 0.5) * forceScale;
+
+                const dx = targetX - this.x;
+                const dy = targetY - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (isLampOn && this.state !== 'leaving') {
+                    let attractionBase = this.isBig ? 38 : 30;
+                    let attraction = Math.min(0.22, attractionBase / (distance + 10));
+                    
+                    if (this.state === 'appearing') {
+                        attraction = 0.25;
+                        if (distance < 80) this.state = 'flying'; 
+                    }
+
+                    this.vx += (dx / (distance + 1)) * attraction + randForceX;
+                    this.vy += (dy / (distance + 1)) * attraction + randForceY;
+                } else {
+                    // ランプが消えている、または「退場中（leaving）」の挙動
+                    // ランプとは「逆方向」に逃げるベクトルを発生させる
+                    const pushAwayScale = this.state === 'leaving' ? 0.4 : 0.15;
+                    this.vx += randForceX * 0.6 - (dx / (distance + 1)) * pushAwayScale;
+                    this.vy += randForceY * 0.6 - (dy / (distance + 1)) * pushAwayScale;
+                    
+                    if (this.state === 'leaving') {
+                        // ランプから十分に離れたら（光が当たらない180px以上離れたら）フェードアウトをトリガー
+                        if (distance > 180 && !this.isMarkedForDeath) {
+                            this.isMarkedForDeath = true;
+                            this.el.style.transition = 'opacity 1.5s ease-out';
+                            this.el.style.opacity = '0';
+                        }
+                    }
+                }
+
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                const maxSpeed = isLampOn ? (this.isBig ? 6.0 : 7.5) : 4.5;
+                if (speed > maxSpeed) {
+                    this.vx = (this.vx / speed) * maxSpeed;
+                    this.vy = (this.vy / speed) * maxSpeed;
+                }
+
+                this.vx *= this.isBig ? 0.94 : 0.92;
+                this.vy *= this.isBig ? 0.94 : 0.92;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                const angleRad = Math.atan2(this.vy, this.vx);
+                const angleDeg = angleRad * (180 / Math.PI) + 90;
+
+                this.el.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) rotate(${angleDeg}deg)`;
+            }
+
+            startLeaving() {
+                this.state = 'leaving';
+            }
+
+            isDead() {
+                // フェードアウトが完了した、または画面の外側に完全に飛び出した場合に消滅
+                if (this.isMarkedForDeath && parseFloat(window.getComputedStyle(this.el).opacity) === 0) {
+                    return true;
+                }
+                const stageOut = 250;
+                if (this.x < -stageOut || this.x > window.innerWidth + stageOut || this.y < -stageOut || this.y > window.innerHeight + stageOut) {
+                    return true;
+                }
+                return false;
+            }
+
+            destroy() {
+                if (this.el && this.el.parentNode) {
+                    this.el.parentNode.removeChild(this.el);
+                }
+            }
+        }
+
+        // --- 羽虫たちの管理システム ---
+        let moths = [];
+        const MAX_MOTHS = 3; 
+
+        // 初期配置
+        moths.push(new Moth(true, false));
+
+        function manageMothPopulation() {
+            if (isLampOn) {
+                const dice = Math.random();
+                
+                if (moths.length < MAX_MOTHS && dice < 0.28) {
+                    const activeMoths = moths.filter(m => m.state !== 'leaving').length;
+                    if (activeMoths < MAX_MOTHS) {
+                        const isBigMoth = Math.random() < 0.20; 
+                        moths.push(new Moth(false, isBigMoth));
+                    }
+                }
+                
+                if (moths.length > 0 && dice > 0.80) {
+                    const flyingMoths = moths.filter(m => m.state === 'flying');
+                    if (flyingMoths.length > 0) {
+                        const targetMoth = flyingMoths[Math.floor(Math.random() * flyingMoths.length)];
+                        targetMoth.startLeaving();
+                    }
+                }
+            }
+
+            setTimeout(manageMothPopulation, 2000 + Math.random() * 2000);
+        }
+
+        // メイン描画ループ
+        function updateMothsLoop() {
+            const stageWidth = window.innerWidth;
+            const stageHeight = window.innerHeight;
+            
+            // ランプの吊り下げ基準点（画面の中央から250px上 = 電球がほぼ中央にぶら下がる位置）
+            const pivotX = stageWidth / 2;
+            const pivotY = stageHeight / 2 - 250; 
+            const length = 262; 
+
+            // 物理運動したランプの現在の先端（電球の中心）のX, Y座標を追従算出
+            const currentTargetX = pivotX + length * Math.sin(angle);
+            const currentTargetY = pivotY + length * Math.cos(angle);
+
+            moths = moths.filter(moth => {
+                moth.update(currentTargetX, currentTargetY);
+                if (moth.isDead()) {
+                    moth.destroy();
+                    return false;
+                }
+                return true;
+            });
+
+            requestAnimationFrame(updateMothsLoop);
+        }
+
+        // --- 初期化とアニメーション開始 ---
+        updatePhysics();
+        updateLight();
+        triggerGust(); 
+        
+        updateMothsLoop();
+        
+        setTimeout(manageMothPopulation, 2500);
+    </script>
+</body>
+</html>

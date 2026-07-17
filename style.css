@@ -44,6 +44,7 @@ body {
   background-color: #ffffff;
   overflow-y: auto; 
   max-height: calc(100vh - 160px); /* 上下のヘッダー・フッターの分を除いた最大高さ */
+  padding-bottom: 20px; /* 最後のアイテムの下に少し余白 */
 }
 
 /* 各行（バー）の共通設定 */
@@ -52,19 +53,51 @@ body {
   align-items: center;
   justify-content: flex-start;
   text-decoration: none;
-  color: #fff;
   overflow: hidden;
   position: relative;
-  padding: 0 40px;
-  height: 80px; 
-  flex-shrink: 0; /* スクロール時も絶対に潰れないように固定 */
-  transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
+  padding: 0 40px 0 48px; 
+  height: 60px; 
+  flex-shrink: 0; 
+  
+  /* 💡 間隔をギュッと詰めて、シャープなスリット状の隙間に変更 */
+  margin-bottom: 4px; 
+  
+  background-color: #ececec; 
+  color: #333333;
+  z-index: 1;
+  
+  transition: 
+    height 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
+    color 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
 }
 
-/* hover または active クラスがついた時に広げる */
+/* 💡 左端から色が広がるアニメーションのための仕込み（疑似要素） */
+.gallery-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  /* 💡 改善案③：通常時は左端の6pxだけ固有色（グラデーション）を表示 */
+  width: 6px; 
+  z-index: -1;
+  background: var(--bg-gradient); /* 各カラークラスで指定した変数を読み込む */
+  
+  /* 左端から右へ広がるアニメーションの設定 */
+  transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* hover または active クラスがついた時（共通の見た目変化） */
 .gallery-item:hover,
 .gallery-item.active {
   height: 180px;
+  color: #ffffff; /* 背景が色で満たされた時に文字を白にする */
+}
+
+/* 💡 ホバー時に左端のラインを全体（100%）に広げる */
+.gallery-item:hover::before,
+.gallery-item.active::before {
+  width: 100%;
 }
 
 /* バーの中身 */
@@ -95,25 +128,25 @@ body {
 .gallery-item:hover .description,
 .gallery-item.active .description {
   max-height: 100px;
-  opacity: 0.7;
+  opacity: 0.85;
   margin-top: 15px;
 }
 
 /* 🔗 最下部のフッターエリアの設定 */
 .site-footer {
   background-color: #ffffff;
-  margin-top: auto; /* 作品が少なくてもフッターが自動的に最下部に押し下げられます */
-  padding: 40px; /* 下部にも贅沢な余白を確保 */
+  margin-top: auto; 
+  padding: 40px; 
   display: flex;
-  flex-direction: row; /* 横並びにする */
+  flex-direction: row; 
   align-items: center;
-  gap: 40px; /* 名前とリンクの間の溝 */
-  flex-wrap: wrap; /* 画面が狭いときは自動で折り返す親切設計 */
+  gap: 40px; 
+  flex-wrap: wrap; 
 }
 
 /* 💡 新しく追加した名前のスタイル */
 .footer-name {
-  color: #444444; /* リンクより少し濃い、上品なチャコールグレー */
+  color: #444444; 
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 2px;
@@ -121,12 +154,12 @@ body {
 
 .footer-links {
   display: flex;
-  gap: 30px; /* リンク同士の間隔 */
+  gap: 30px; 
 }
 .site-footer a {
-  color: #888888; /* 上品な薄めのグレー */
+  color: #888888; 
   text-decoration: none;
-  font-size: 0.7rem; /* 小さい文字 */
+  font-size: 0.7rem; 
   font-weight: 700;
   letter-spacing: 2px;
   transition: color 0.3s ease;
@@ -136,11 +169,12 @@ body {
   color: #111111; 
 }
 
-/* --- 各バーのカラフルな背景色 --- */
-.item-color7 { background: linear-gradient(90deg, #da8f6c, #e7ae6d); }
-.item-color6 { background: linear-gradient(90deg, #657cac, #7195ca); }
-.item-color5 { background: linear-gradient(90deg, #f0c679, #fada83); }
-.item-color4 { background: linear-gradient(90deg, #6ba8bb, #6eccbf); }
-.item-color3 { background: linear-gradient(90deg, #d38b9c, #d487b2); }
-.item-color2 { background: linear-gradient(90deg, #bbbdb3, #b4b296); }
-.item-color1 { background: linear-gradient(90deg, #7ed1a8, #8cdd9e); }
+/* --- 🎨 各バーの固有色（CSS変数を使ってスマートに管理） --- */
+.item-color8 { --bg-gradient: linear-gradient(90deg, #c978b7, #aa6eb6); }
+.item-color7 { --bg-gradient: linear-gradient(90deg, #d39578, #c5935a); }
+.item-color6 { --bg-gradient: linear-gradient(90deg, #657cac, #7195ca); }
+.item-color5 { --bg-gradient: linear-gradient(90deg, #f0c679, #fada83); }
+.item-color4 { --bg-gradient: linear-gradient(90deg, #6ba8bb, #6eccbf); }
+.item-color3 { --bg-gradient: linear-gradient(90deg, #d38b9c, #d487b2); }
+.item-color2 { --bg-gradient: linear-gradient(90deg, #bbbdb3, #b4b296); }
+.item-color1 { --bg-gradient: linear-gradient(90deg, #7ed1a8, #8cdd9e); }

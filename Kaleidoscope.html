@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+        <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-1N3NFH6G08"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-1N3NFH6G08');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Kaleidoscope</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #030206; 
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const backCanvas = document.createElement('canvas');
+        const backCtx = backCanvas.getContext('2d');
+
+        let width, height, cx, cy, maxRadius;
+        
+        function resize() {
+            const dpr = window.devicePixelRatio || 1;
+            width = window.innerWidth;
+            height = window.innerHeight;
+            
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
+
+            backCanvas.width = width * dpr;
+            backCanvas.height = height * dpr;
+            backCtx.scale(dpr, dpr);
+
+            cx = width / 2;
+            cy = height / 2;
+            maxRadius = Math.sqrt(cx * cx + cy * cy);
+        }
+        window.addEventListener('resize', resize);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(resize, 200);
+        });
+        resize();
+
+        // 4つの反射（8分割）の角度ステップ
+        const segments = 8; 
+        const angleStep = (Math.PI * 2) / segments;
+        
+        let time = 0;
+        let baseHue = 0;
+        
+        // 2つのレイヤーそれぞれの回転時間と角度
+        let rotationTime0 = 0;
+        let rotationTime1 = 100; 
+        let layerRotation0 = 0;
+        let layerRotation1 = 0;
+
+        // 【ベース】自律運動する主役シェイプ（3つから5つに増量し、各レイヤーへ分配）
+        const shapes = [
+            // --- レイヤー0（奥・3つ） ---
+            {
+                layer: 0,
+                pointsCount: 5,
+                seedX: Math.random() * 100,
+                seedY: Math.random() * 100,
+                radiusScale: 0.8,
+                speed: 0.004
+            },
+            {
+                layer: 0,
+                pointsCount: 4,
+                seedX: Math.random() * 100,
+                seedY: Math.random() * 100,
+                radiusScale: 0.55,
+                speed: 0.007
+            },
+            {
+                layer: 0,
+                pointsCount: 3,
+                seedX: Math.random() * 100,
+                seedY: Math.random() * 100,
+                radiusScale: 0.3,
+                speed: 0.01
+            },
+            // --- レイヤー1（手前・2つ） ---
+            {
+                layer: 1,
+                pointsCount: 5,
+                seedX: Math.random() * 100,
+                seedY: Math.random() * 100,
+                radiusScale: 0.65,
+                speed: 0.006
+            },
+            {
+                layer: 1,
+                pointsCount: 4,
+                seedX: Math.random() * 100,
+                seedY: Math.random() * 100,
+                radiusScale: 0.4,
+                speed: 0.009
+            }
+        ];
+
+        // 【ラメ】総数25個を維持し、2つのレイヤーに分配
+        const beads = [];
+        const maxBeads = 25; 
+        for (let i = 0; i < maxBeads; i++) {
+            beads.push({
+                layer: i % 2, 
+                seedX: Math.random() * 100,
+                seedY: Math.random() * 100,
+                baseRadius: 0.15 + Math.random() * 0.7, 
+                size: 1.0 + Math.random() * 3.5, 
+                hueOffset: Math.random() * 40 - 20,
+                speedScale: 0.6 + Math.random() * 0.8, 
+                isComplementary: Math.random() < 0.33 
+            });
+        }
+
+        function draw() {
+            // 1. 【裏画面】で主役の残像を描画
+            backCtx.fillStyle = 'rgba(3, 2, 6, 0.05)'; 
+            backCtx.fillRect(0, 0, width, height);
+
+            // レイヤー0（奥）のイージング付き回転計算
+            rotationTime0 += 0.0020; 
+            const speedWave0 = Math.sin(rotationTime0);
+            const easedSpeed0 = Math.pow(Math.abs(speedWave0), 5.0) * Math.sign(speedWave0);
+            const speedFactor0 = 0.0020 + easedSpeed0 * 0.015; 
+            layerRotation0 += speedFactor0 * 0.3;
+
+            // レイヤー1（手前）のイージング付き回転計算
+            rotationTime1 += 0.0035; 
+            const speedWave1 = Math.sin(rotationTime1);
+            const easedSpeed1 = Math.pow(Math.abs(speedWave1), 5.0) * Math.sign(speedWave1);
+            const speedFactor1 = 0.0030 + easedSpeed1 * 0.025; 
+            layerRotation1 += speedFactor1 * 0.3;
+
+            // 共通の時間と色相の更新
+            time += speedFactor0; 
+            baseHue = (baseHue + 0.08) % 360; 
+
+            // --- レイヤー0（奥）の描画 ---
+            drawLayer(backCtx, 0, layerRotation0);
+
+            // --- レイヤー1（手前）の描画 ---
+            drawLayer(backCtx, 1, layerRotation1);
+
+            // 2. 【表画面】にコピーし、その上にラメを重ねる
+            ctx.clearRect(0, 0, width, height);
+            ctx.drawImage(backCanvas, 0, 0, width, height);
+
+            ctx.globalCompositeOperation = 'source-over';
+
+            // --- ラメも2つのレイヤーそれぞれに連動して描画 ---
+            drawBeads(ctx, 0, layerRotation0);
+            drawBeads(ctx, 1, layerRotation1);
+
+            requestAnimationFrame(draw);
+        }
+
+        // 万華鏡レイヤーを描画するヘルパー関数
+        function drawLayer(targetCtx, layerIdx, currentRotation) {
+            const layerShapes = shapes.filter(s => s.layer === layerIdx);
+            if (layerShapes.length === 0) return;
+
+            for (let i = 0; i < segments; i++) {
+                targetCtx.save();
+                targetCtx.translate(cx, cy);
+                
+                targetCtx.rotate(currentRotation);
+                targetCtx.rotate(i * angleStep);
+
+                if (i % 2 === 0) {
+                    targetCtx.scale(1, -1);
+                }
+
+                // クリップ領域
+                targetCtx.beginPath();
+                targetCtx.moveTo(0, 0);
+                targetCtx.arc(0, 0, maxRadius, -0.01, angleStep + 0.01);
+                targetCtx.closePath();
+                targetCtx.clip();
+
+                // 該当レイヤーの主役多角形を描画
+                layerShapes.forEach((shape) => {
+                    const sIdx = shapes.indexOf(shape);
+                    targetCtx.beginPath();
+                    for (let p = 0; p < shape.pointsCount; p++) {
+                        const angleOffset = (p / shape.pointsCount) * Math.PI * 2;
+                        const waveX = Math.sin(time * (sIdx + 1) * 0.5 + angleOffset + shape.seedX);
+                        const waveY = Math.cos(time * (sIdx + 1) * 0.3 + angleOffset + shape.seedY);
+                        
+                        const r = (0.15 + (waveX + 1) * 0.35) * maxRadius * shape.radiusScale;
+                        const theta = (waveY + 1) * 0.5 * angleStep;
+
+                        const px = Math.cos(theta) * r;
+                        const py = Math.sin(theta) * r;
+
+                        if (p === 0) targetCtx.moveTo(px, py);
+                        else targetCtx.lineTo(px, py);
+                    }
+                    targetCtx.closePath();
+
+                    const hue = (baseHue + sIdx * 50) % 360; // 色相の分散を少し調整
+                    const grad = targetCtx.createRadialGradient(0, 0, 10, 0, 0, maxRadius * 0.85);
+                    grad.addColorStop(0, `hsla(${hue}, 95%, 60%, 0.16)`); // 密度アップに伴い透明度をほんの少し下げて調整
+                    grad.addColorStop(0.5, `hsla(${(hue + 45) % 360}, 90%, 50%, 0.08)`);
+                    grad.addColorStop(1, `hsla(${(hue + 120) % 360}, 100%, 40%, 0)`);
+
+                    targetCtx.fillStyle = grad;
+                    targetCtx.fill();
+                });
+
+                targetCtx.restore();
+            }
+        }
+
+        // ラメをレイヤーごとに描画するヘルパー関数
+        function drawBeads(targetCtx, layerIdx, currentRotation) {
+            const layerBeads = beads.filter(b => b.layer === layerIdx);
+            if (layerBeads.length === 0) return;
+
+            for (let i = 0; i < segments; i++) {
+                targetCtx.save();
+                targetCtx.translate(cx, cy);
+                
+                targetCtx.rotate(currentRotation);
+                targetCtx.rotate(i * angleStep);
+
+                if (i % 2 === 0) {
+                    targetCtx.scale(1, -1);
+                }
+
+                // クリップ領域
+                targetCtx.beginPath();
+                targetCtx.moveTo(0, 0);
+                targetCtx.arc(0, 0, maxRadius, -0.01, angleStep + 0.01);
+                targetCtx.closePath();
+                targetCtx.clip();
+
+                // 該当レイヤーのラメを描画
+                layerBeads.forEach((bead) => {
+                    const waveX = Math.sin(time * bead.speedScale + bead.seedX);
+                    const waveY = Math.cos(time * bead.speedScale + bead.seedY);
+                    
+                    const r = (0.2 + (waveX + 1) * 0.4) * maxRadius * bead.baseRadius;
+                    const theta = (waveY + 1) * 0.5 * angleStep;
+
+                    const px = Math.cos(theta) * r;
+                    const py = Math.sin(theta) * r;
+
+                    let h = baseHue + bead.hueOffset;
+                    if (bead.isComplementary) h += 180;
+                    h = (h + 360) % 360;
+                    
+                    const opacity = 0.15 + (Math.sin(time * 9 + bead.seedX) + 1) * 0.35;
+
+                    const beadGrad = targetCtx.createRadialGradient(px, py, 0, px, py, bead.size);
+                    beadGrad.addColorStop(0, `hsla(${h}, 90%, 95%, ${opacity})`);       
+                    beadGrad.addColorStop(0.2, `hsla(${h}, 85%, 75%, ${opacity * 0.85})`); 
+                    beadGrad.addColorStop(0.6, `hsla(${h}, 80%, 65%, ${opacity * 0.3})`);  
+                    beadGrad.addColorStop(1, `hsla(${h}, 80%, 65%, 0)`);                  
+
+                    targetCtx.beginPath();
+                    targetCtx.arc(px, py, bead.size, 0, Math.PI * 2);
+                    targetCtx.fillStyle = beadGrad;
+                    targetCtx.fill();
+                });
+
+                targetCtx.restore();
+            }
+        }
+
+        draw();
+    </script>
+</body>
+</html>
